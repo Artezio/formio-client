@@ -1,0 +1,17 @@
+{
+	"objectEntry" : {
+		"stringField" : "new value",
+		"stringListField" : [
+			"one",
+			"two"
+		],
+		"nestedEntityField" : {
+			"stringField" : "nested value"
+		}
+	},
+	"textMessage" : "message",
+	"stringEntry" : "string value",
+	"emptyEntry" : "empty value",
+	"emptyArrayEntry" : ["new entry 1", {"fld" : "test"}],
+	"stringArrayEntry" : ["one", "two"]
+}

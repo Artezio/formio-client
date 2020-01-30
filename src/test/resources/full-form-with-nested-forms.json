@@ -1,0 +1,118 @@
+{
+  "type": "form",
+  "path": "forms/outer-form",
+  "src": "",
+  "_id":"5gf5",
+  "components": [
+    {
+      "type": "text",
+      "key": "text"
+    },
+    {
+      "type": "form",
+      "key": "nested-1",
+      "_id": "5c4f",
+      "form": "5c4f",
+      "path": "/forms/nested-1",
+      "src": "",
+      "components": [
+        {
+          "key": "nested-1-text",
+          "type": "text"
+        },
+        {
+          "type": "form",
+          "key": "nested-2",
+          "project": "",
+          "unique": "",
+          "reference": "",
+          "protected": true,
+          "form": "5d56",
+          "_id": "5d56",
+          "path": "/forms/nested-2",
+          "src": "",
+          "components": [
+            {
+              "key": "nested-2-text",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "components":[
+            {
+              "components":[
+                {
+                  "type":"textfield",
+                  "key":"text",
+                  "input":true,
+                  "spellcheck":true,
+                  "unique":false
+                },
+                {
+                  "type": "datagrid",
+                  "key": "datagrid-without-unwrapping",
+                  "components": [
+                    {
+                      "components":[
+                        {
+                          "type":"textfield",
+                          "key":"text1",
+                          "input":true,
+                          "spellcheck":true,
+                          "unique":false
+                        }
+                      ],
+                      "inDataGrid":true,
+                      "type":"container",
+                      "input":true,
+                      "key":"container"
+                    },
+                    {
+                      "type":"textfield",
+                      "key":"text2",
+                      "input":true,
+                      "spellcheck":true,
+                      "unique":false
+                    }
+                  ]
+                }
+              ],
+              "inDataGrid":true,
+              "type":"container",
+              "input":true,
+              "key":"container"
+            }
+          ],
+          "properties": {
+            "noRowWrapping": true
+          },
+          "type":"datagrid",
+          "key":"nested-3-datagrid"
+        }
+      ]
+    },
+    {
+      "type": "datagrid",
+      "key": "multipleForms",
+      "components": [
+        {
+          "type": "form",
+          "form": "663d",
+          "path": "/forms/nested-array-1",
+          "src": "",
+          "_id": "663d",
+          "key": "nested-array-form",
+          "protected": false,
+          "project": "",
+          "components": [
+            {
+              "key": "nested-array-1-text",
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

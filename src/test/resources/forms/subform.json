@@ -1,0 +1,91 @@
+{
+  "_id": "5dfcb9eefaf27d001be08f11",
+  "type": "form",
+  "tags": [
+    "common"
+  ],
+  "owner": "5df7303bae0c6600108ed9e1",
+  "components": [
+    {
+      "autofocus": false,
+      "input": true,
+      "tableView": true,
+      "inputType": "text",
+      "inputMask": "",
+      "label": "Text 2",
+      "key": "text2",
+      "placeholder": "",
+      "prefix": "",
+      "suffix": "",
+      "multiple": false,
+      "defaultValue": "",
+      "protected": false,
+      "unique": false,
+      "persistent": true,
+      "hidden": false,
+      "clearOnHide": true,
+      "spellcheck": true,
+      "validate": {
+        "required": false,
+        "minLength": "",
+        "maxLength": "",
+        "pattern": "",
+        "custom": "",
+        "customPrivate": false
+      },
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "type": "textfield",
+      "labelPosition": "top",
+      "inputFormat": "plain",
+      "tags": [],
+      "properties": {}
+    }
+  ],
+  "display": "form",
+  "submissionAccess": [
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "create_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "read_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "update_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "delete_own"
+    }
+  ],
+  "title": "Subform",
+  "name": "subform",
+  "path": "forms/subform",
+  "access": [
+    {
+      "roles": [
+        "5df7302dae0c6600108ed9d3",
+        "5df73032ae0c6600108ed9d4",
+        "5df73032ae0c6600108ed9d5"
+      ],
+      "type": "read_all"
+    }
+  ],
+  "created": "2019-12-20T12:09:18.614Z",
+  "modified": "2019-12-23T10:26:53.791Z",
+  "machineName": "subform"
+}

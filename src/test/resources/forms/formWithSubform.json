@@ -1,0 +1,77 @@
+{
+  "_id": "5e0081f4accf98001b4a2140",
+  "type": "form",
+  "tags": [
+    "common"
+  ],
+  "owner": "5df7303bae0c6600108ed9e1",
+  "components": [
+    {
+      "clearOnHide": true,
+      "input": true,
+      "tableView": true,
+      "key": "subform",
+      "src": "",
+      "reference": true,
+      "form": "5dfcb9eefaf27d001be08f11",
+      "path": "",
+      "label": "Subform",
+      "protected": false,
+      "unique": false,
+      "persistent": true,
+      "type": "form",
+      "project": "",
+      "labelPosition": "top",
+      "tags": [],
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "properties": {}
+    }
+  ],
+  "display": "form",
+  "submissionAccess": [
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "create_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "read_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "update_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "delete_own"
+    }
+  ],
+  "title": "Form With Subform",
+  "name": "form-with-subform",
+  "path": "forms/form-with-subform",
+  "access": [
+    {
+      "roles": [
+        "5df7302dae0c6600108ed9d3",
+        "5df73032ae0c6600108ed9d4",
+        "5df73032ae0c6600108ed9d5"
+      ],
+      "type": "read_all"
+    }
+  ],
+  "created": "2019-12-23T08:59:32.188Z",
+  "modified": "2019-12-23T10:32:11.688Z",
+  "machineName": "form-with-subform"
+}

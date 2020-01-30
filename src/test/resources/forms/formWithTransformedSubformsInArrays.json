@@ -1,0 +1,279 @@
+{
+  "_id": "5e0079adaccf98001b4a2132",
+  "type": "form",
+  "tags": [
+    "common"
+  ],
+  "owner": "5df7303bae0c6600108ed9e1",
+  "components": [
+    {
+      "autofocus": false,
+      "input": true,
+      "tableView": true,
+      "inputType": "text",
+      "inputMask": "",
+      "label": "Text",
+      "key": "text",
+      "placeholder": "",
+      "prefix": "",
+      "suffix": "",
+      "multiple": false,
+      "defaultValue": "",
+      "protected": false,
+      "unique": false,
+      "persistent": true,
+      "hidden": false,
+      "clearOnHide": true,
+      "spellcheck": true,
+      "validate": {
+        "required": false,
+        "minLength": "",
+        "maxLength": "",
+        "pattern": "",
+        "custom": "",
+        "customPrivate": false
+      },
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "type": "textfield",
+      "labelPosition": "top",
+      "inputFormat": "plain",
+      "tags": [],
+      "properties": {},
+      "lockKey": true
+    },
+    {
+      "autofocus": false,
+      "input": true,
+      "tree": true,
+      "components": [
+        {
+          "input": true,
+          "tree": true,
+          "components": [
+            {
+              "autofocus": false,
+              "input": true,
+              "tableView": true,
+              "inputType": "text",
+              "inputMask": "",
+              "label": "Text 2",
+              "key": "text2",
+              "placeholder": "",
+              "prefix": "",
+              "suffix": "",
+              "multiple": false,
+              "defaultValue": "",
+              "protected": false,
+              "unique": false,
+              "persistent": true,
+              "hidden": false,
+              "clearOnHide": true,
+              "spellcheck": true,
+              "validate": {
+                "required": false,
+                "minLength": "",
+                "maxLength": "",
+                "pattern": "",
+                "custom": "",
+                "customPrivate": false
+              },
+              "conditional": {
+                "show": "",
+                "when": null,
+                "eq": ""
+              },
+              "type": "textfield",
+              "labelPosition": "top",
+              "inputFormat": "plain",
+              "tags": [],
+              "properties": {}
+            }
+          ],
+          "tableView": true,
+          "label": "Subform",
+          "key": "subform",
+          "protected": false,
+          "persistent": true,
+          "clearOnHide": true,
+          "type": "container",
+          "inDataGrid": true,
+          "labelPosition": "top",
+          "tags": [],
+          "conditional": {
+            "show": "",
+            "when": null,
+            "eq": ""
+          },
+          "properties": {},
+          "lockKey": true
+        }
+      ],
+      "tableView": true,
+      "label": "Array 1",
+      "key": "array1",
+      "protected": false,
+      "persistent": true,
+      "hidden": false,
+      "clearOnHide": true,
+      "type": "datagrid",
+      "addAnotherPosition": "bottom",
+      "tags": [],
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "properties": {},
+      "lockKey": true
+    },
+    {
+      "input": true,
+      "tree": true,
+      "components": [
+        {
+          "input": true,
+          "tree": true,
+          "components": [
+            {
+              "autofocus": false,
+              "input": true,
+              "tableView": true,
+              "inputType": "text",
+              "inputMask": "",
+              "label": "Text 2",
+              "key": "text2",
+              "placeholder": "",
+              "prefix": "",
+              "suffix": "",
+              "multiple": false,
+              "defaultValue": "",
+              "protected": false,
+              "unique": false,
+              "persistent": true,
+              "hidden": false,
+              "clearOnHide": true,
+              "spellcheck": true,
+              "validate": {
+                "required": false,
+                "minLength": "",
+                "maxLength": "",
+                "pattern": "",
+                "custom": "",
+                "customPrivate": false
+              },
+              "conditional": {
+                "show": "",
+                "when": null,
+                "eq": ""
+              },
+              "type": "textfield",
+              "labelPosition": "top",
+              "inputFormat": "plain",
+              "tags": [],
+              "properties": {}
+            }
+          ],
+          "tableView": true,
+          "label": "Subform",
+          "key": "subform",
+          "protected": false,
+          "persistent": true,
+          "clearOnHide": true,
+          "type": "container",
+          "labelPosition": "top",
+          "tags": [],
+          "conditional": {
+            "show": "",
+            "when": null,
+            "eq": ""
+          },
+          "properties": {},
+          "lockKey": true
+        }
+      ],
+      "multiple": false,
+      "tableView": true,
+      "label": "Array 2",
+      "key": "array2",
+      "protected": false,
+      "persistent": true,
+      "hidden": false,
+      "clearOnHide": true,
+      "templates": {
+        "header": "<div class=\"row\"> \n  {%util.eachComponent(components, function(component) { %} \n    <div class=\"col-sm-2\"> \n      {{ component.label }} \n    </div> \n  {% }) %} \n</div>",
+        "row": "<div class=\"row\"> \n  {%util.eachComponent(components, function(component) { %} \n    <div class=\"col-sm-2\"> \n      {{ getView(component, row[component.key]) }} \n    </div> \n  {% }) %} \n  <div class=\"col-sm-2\"> \n    <div class=\"btn-group pull-right\"> \n      <div class=\"btn btn-default editRow\">Edit</div> \n      <div class=\"btn btn-danger removeRow\">Delete</div> \n    </div> \n  </div> \n</div>",
+        "footer": ""
+      },
+      "type": "editgrid",
+      "tags": [],
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "properties": {}
+    },
+    {
+      "autofocus": false,
+      "input": true,
+      "label": "Submit",
+      "tableView": false,
+      "key": "submit",
+      "size": "md",
+      "leftIcon": "",
+      "rightIcon": "",
+      "block": false,
+      "action": "submit",
+      "disableOnInvalid": false,
+      "theme": "primary",
+      "type": "button"
+    }
+  ],
+  "display": "form",
+  "submissionAccess": [
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "create_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "read_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "update_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "delete_own"
+    }
+  ],
+  "title": "Form With Transformed Subforms In Arrays",
+  "name": "form-with-transformed-subforms-in-arrays",
+  "path": "forms/form-with-transformed-subforms-in-arrays",
+  "access": [
+    {
+      "roles": [
+        "5df7302dae0c6600108ed9d3",
+        "5df73032ae0c6600108ed9d4",
+        "5df73032ae0c6600108ed9d5"
+      ],
+      "type": "read_all"
+    }
+  ],
+  "created": "2019-12-23T08:24:13.239Z",
+  "modified": "2019-12-23T08:24:13.246Z",
+  "machineName": "form-with-transformed-subforms-in-arrays"
+}

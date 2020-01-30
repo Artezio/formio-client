@@ -1,0 +1,46 @@
+{
+  "text": "text",
+  "nested-1": {
+    "metadata": {},
+    "nested-1-text": "text1",
+    "nested-2": {
+      "metadata": {},
+      "nested-2-text": "text2"
+    },
+    "nested-3-datagrid": [
+      {
+        "container": {
+          "text": "2",
+          "datagrid-without-unwrapping": [
+            {
+              "text2": "text2",
+              "container": {
+                "text1": "text1"
+              }
+            }
+          ]
+        }
+      },
+      {
+        "container": {
+          "text": "3",
+          "datagrid-without-unwrapping": [
+            {
+              "text2": "text2-1",
+              "container": {
+                "text1": "text1-1"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "multipleForms": [
+    {
+      "nested-array-form": {
+        "metadata": ""
+      }
+    }
+  ]
+}

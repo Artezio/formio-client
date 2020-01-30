@@ -1,0 +1,145 @@
+{
+  "_id": "5e29678809386c190403923e",
+  "type": "form",
+  "tags": [
+    "common"
+  ],
+  "owner": "5df7303bae0c6600108ed9e1",
+  "components": [
+    {
+      "autofocus": false,
+      "input": true,
+      "tableView": true,
+      "inputType": "text",
+      "inputMask": "",
+      "label": "Text",
+      "key": "text",
+      "placeholder": "",
+      "prefix": "",
+      "suffix": "",
+      "multiple": false,
+      "defaultValue": "",
+      "protected": false,
+      "unique": false,
+      "persistent": true,
+      "hidden": false,
+      "clearOnHide": true,
+      "spellcheck": true,
+      "validate": {
+        "required": false,
+        "minLength": "",
+        "maxLength": "",
+        "pattern": "",
+        "custom": "",
+        "customPrivate": false
+      },
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "type": "textfield",
+      "labelPosition": "top",
+      "inputFormat": "plain",
+      "tags": [],
+      "properties": {}
+    },
+    {
+      "autofocus": false,
+      "input": true,
+      "tableView": true,
+      "inputType": "text",
+      "inputMask": "",
+      "label": "ReadOnly",
+      "key": "readOnly",
+      "placeholder": "",
+      "prefix": "",
+      "suffix": "",
+      "multiple": false,
+      "defaultValue": "test",
+      "protected": false,
+      "unique": false,
+      "persistent": true,
+      "hidden": false,
+      "clearOnHide": true,
+      "spellcheck": true,
+      "validate": {
+        "required": false,
+        "minLength": "",
+        "maxLength": "",
+        "pattern": "",
+        "custom": "",
+        "customPrivate": false
+      },
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "type": "textfield",
+      "labelPosition": "top",
+      "inputFormat": "plain",
+      "tags": [],
+      "properties": {},
+      "disabled": true
+    },
+    {
+      "autofocus": false,
+      "input": true,
+      "label": "Submit",
+      "tableView": false,
+      "key": "submit",
+      "size": "md",
+      "leftIcon": "",
+      "rightIcon": "",
+      "block": false,
+      "action": "submit",
+      "disableOnInvalid": false,
+      "theme": "primary",
+      "type": "button"
+    }
+  ],
+  "display": "form",
+  "submissionAccess": [
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "create_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "read_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "update_own"
+    },
+    {
+      "roles": [
+        "5df73032ae0c6600108ed9d4"
+      ],
+      "type": "delete_own"
+    }
+  ],
+  "title": "Test",
+  "name": "test",
+  "path": "forms/test",
+  "access": [
+    {
+      "roles": [
+        "5df7302dae0c6600108ed9d3",
+        "5df73032ae0c6600108ed9d4",
+        "5df73032ae0c6600108ed9d5"
+      ],
+      "type": "read_all"
+    }
+  ],
+  "created": "2019-12-16T09:18:43.653Z",
+  "modified": "2020-01-23T09:30:24.023Z",
+  "machineName": "test"
+}

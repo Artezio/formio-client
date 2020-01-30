@@ -1,0 +1,531 @@
+{
+  "_id": "5dcbb9f7891eab001b3b6a0b",
+  "type": "form",
+  "tags": [
+    "common"
+  ],
+  "owner": "5db3065bf3d74300101820ef",
+  "components": [
+    {
+      "hidden": false,
+      "conditional": {
+        "show": "",
+        "eq": "",
+        "when": null
+      },
+      "prefix": "",
+      "defaultValue": "",
+      "suffix": "",
+      "type": "textfield",
+      "protected": false,
+      "labelPosition": "top",
+      "inputType": "text",
+      "placeholder": "",
+      "lockKey": true,
+      "persistent": true,
+      "key": "enabledField",
+      "validate": {
+        "minLength": "",
+        "custom": "",
+        "customPrivate": false,
+        "pattern": "",
+        "required": false,
+        "maxLength": ""
+      },
+      "multiple": false,
+      "tableView": true,
+      "clearOnHide": true,
+      "label": "Text",
+      "autofocus": false,
+      "inputMask": "",
+      "inputFormat": "plain",
+      "tags": [],
+      "input": true,
+      "spellcheck": true,
+      "unique": false,
+      "properties": {}
+    },
+    {
+      "hidden": false,
+      "conditional": {
+        "show": "",
+        "eq": "",
+        "when": null
+      },
+      "prefix": "",
+      "defaultValue": "",
+      "suffix": "",
+      "type": "textfield",
+      "protected": false,
+      "labelPosition": "top",
+      "inputType": "text",
+      "disabled": true,
+      "placeholder": "",
+      "lockKey": true,
+      "persistent": true,
+      "key": "disabledField",
+      "validate": {
+        "minLength": "",
+        "custom": "",
+        "customPrivate": false,
+        "pattern": "",
+        "required": false,
+        "maxLength": ""
+      },
+      "multiple": false,
+      "tableView": true,
+      "clearOnHide": true,
+      "label": "Text",
+      "autofocus": false,
+      "inputMask": "",
+      "inputFormat": "plain",
+      "tags": [],
+      "input": true,
+      "spellcheck": true,
+      "unique": false,
+      "properties": {}
+    },
+    {
+      "components": [
+        {
+          "hidden": false,
+          "conditional": {
+            "show": "",
+            "eq": "",
+            "when": null
+          },
+          "prefix": "",
+          "defaultValue": "",
+          "suffix": "",
+          "type": "textfield",
+          "protected": false,
+          "labelPosition": "top",
+          "inputType": "text",
+          "disabled": true,
+          "placeholder": "",
+          "lockKey": true,
+          "persistent": true,
+          "key": "disabledField",
+          "validate": {
+            "minLength": "",
+            "custom": "",
+            "customPrivate": false,
+            "pattern": "",
+            "required": false,
+            "maxLength": ""
+          },
+          "multiple": false,
+          "tableView": true,
+          "clearOnHide": true,
+          "label": "Text",
+          "autofocus": false,
+          "inputMask": "",
+          "inputFormat": "plain",
+          "tags": [],
+          "input": true,
+          "spellcheck": true,
+          "unique": false,
+          "properties": {}
+        },
+        {
+          "hidden": false,
+          "conditional": {
+            "show": "",
+            "eq": "",
+            "when": null
+          },
+          "prefix": "",
+          "defaultValue": "",
+          "suffix": "",
+          "type": "textfield",
+          "protected": false,
+          "labelPosition": "top",
+          "inputType": "text",
+          "placeholder": "",
+          "lockKey": true,
+          "persistent": true,
+          "key": "enabledField",
+          "validate": {
+            "minLength": "",
+            "custom": "",
+            "customPrivate": false,
+            "pattern": "",
+            "required": false,
+            "maxLength": ""
+          },
+          "multiple": false,
+          "tableView": true,
+          "clearOnHide": true,
+          "label": "Text",
+          "autofocus": false,
+          "inputMask": "",
+          "inputFormat": "plain",
+          "tags": [],
+          "input": true,
+          "spellcheck": true,
+          "unique": false,
+          "properties": {}
+        }
+      ],
+      "conditional": {
+        "show": "",
+        "eq": "",
+        "when": null
+      },
+      "tree": true,
+      "tableView": true,
+      "clearOnHide": true,
+      "label": "container",
+      "type": "container",
+      "tags": [],
+      "input": true,
+      "protected": false,
+      "labelPosition": "top",
+      "lockKey": true,
+      "persistent": true,
+      "key": "fieldContainer",
+      "properties": {},
+      "hideLabel": true
+    },
+    {
+      "autofocus": false,
+      "input": true,
+      "tree": true,
+      "components": [
+        {
+          "autofocus": false,
+          "input": true,
+          "tableView": true,
+          "inputType": "text",
+          "inputMask": "",
+          "label": "Text",
+          "key": "enabledField",
+          "placeholder": "",
+          "prefix": "",
+          "suffix": "",
+          "multiple": false,
+          "defaultValue": "",
+          "protected": false,
+          "unique": false,
+          "persistent": true,
+          "hidden": false,
+          "clearOnHide": true,
+          "spellcheck": true,
+          "validate": {
+            "required": false,
+            "minLength": "",
+            "maxLength": "",
+            "pattern": "",
+            "custom": "",
+            "customPrivate": false
+          },
+          "conditional": {
+            "show": "",
+            "when": null,
+            "eq": ""
+          },
+          "type": "textfield",
+          "inDataGrid": true,
+          "labelPosition": "top",
+          "inputFormat": "plain",
+          "tags": [],
+          "properties": {},
+          "lockKey": true
+        }
+      ],
+      "tableView": true,
+      "label": "Data Grid",
+      "key": "disabledDataGrid",
+      "protected": false,
+      "persistent": true,
+      "hidden": false,
+      "clearOnHide": true,
+      "type": "datagrid",
+      "addAnotherPosition": "bottom",
+      "tags": [],
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "properties": {},
+      "lockKey": true,
+      "disabled": true
+    },
+    {
+      "components": [
+        {
+          "hidden": false,
+          "conditional": {
+            "show": "",
+            "eq": "",
+            "when": null
+          },
+          "prefix": "",
+          "defaultValue": "",
+          "suffix": "",
+          "type": "textfield",
+          "protected": false,
+          "labelPosition": "top",
+          "inputType": "text",
+          "disabled": true,
+          "placeholder": "",
+          "lockKey": true,
+          "persistent": true,
+          "key": "disabledField",
+          "validate": {
+            "minLength": "",
+            "custom": "",
+            "customPrivate": false,
+            "pattern": "",
+            "required": false,
+            "maxLength": ""
+          },
+          "multiple": false,
+          "tableView": true,
+          "clearOnHide": true,
+          "label": "Text",
+          "inDataGrid": true,
+          "autofocus": false,
+          "inputMask": "",
+          "inputFormat": "plain",
+          "tags": [],
+          "input": true,
+          "spellcheck": true,
+          "unique": false,
+          "properties": {}
+        },
+        {
+          "hidden": false,
+          "conditional": {
+            "show": "",
+            "eq": "",
+            "when": null
+          },
+          "prefix": "",
+          "defaultValue": "",
+          "suffix": "",
+          "type": "textfield",
+          "protected": false,
+          "labelPosition": "top",
+          "inputType": "text",
+          "placeholder": "",
+          "lockKey": true,
+          "persistent": true,
+          "key": "enabledField",
+          "validate": {
+            "minLength": "",
+            "custom": "",
+            "customPrivate": false,
+            "pattern": "",
+            "required": false,
+            "maxLength": ""
+          },
+          "multiple": false,
+          "tableView": true,
+          "clearOnHide": true,
+          "label": "Text",
+          "inDataGrid": true,
+          "autofocus": false,
+          "inputMask": "",
+          "inputFormat": "plain",
+          "tags": [],
+          "input": true,
+          "spellcheck": true,
+          "unique": false,
+          "properties": {}
+        }
+      ],
+      "hidden": false,
+      "conditional": {
+        "show": "",
+        "eq": "",
+        "when": null
+      },
+      "tree": true,
+      "tableView": true,
+      "clearOnHide": true,
+      "label": "Data Grid",
+      "autofocus": false,
+      "type": "datagrid",
+      "tags": [],
+      "input": true,
+      "protected": false,
+      "lockKey": true,
+      "persistent": true,
+      "addAnotherPosition": "bottom",
+      "key": "fieldDataGrid",
+      "properties": {}
+    },
+    {
+      "components": [
+        {
+          "hidden": false,
+          "conditional": {
+            "show": "",
+            "eq": "",
+            "when": null
+          },
+          "prefix": "",
+          "defaultValue": "",
+          "suffix": "",
+          "type": "textfield",
+          "protected": false,
+          "labelPosition": "top",
+          "inputType": "text",
+          "disabled": true,
+          "placeholder": "",
+          "lockKey": true,
+          "persistent": true,
+          "key": "disabledField",
+          "validate": {
+            "minLength": "",
+            "custom": "",
+            "customPrivate": false,
+            "pattern": "",
+            "required": false,
+            "maxLength": ""
+          },
+          "multiple": false,
+          "tableView": true,
+          "clearOnHide": true,
+          "label": "Text",
+          "autofocus": false,
+          "inputMask": "",
+          "inputFormat": "plain",
+          "tags": [],
+          "input": true,
+          "spellcheck": true,
+          "unique": false,
+          "properties": {}
+        },
+        {
+          "hidden": false,
+          "conditional": {
+            "show": "",
+            "eq": "",
+            "when": null
+          },
+          "prefix": "",
+          "defaultValue": "",
+          "suffix": "",
+          "type": "textfield",
+          "protected": false,
+          "labelPosition": "top",
+          "inputType": "text",
+          "placeholder": "",
+          "lockKey": true,
+          "persistent": true,
+          "key": "enabledField",
+          "validate": {
+            "minLength": "",
+            "custom": "",
+            "customPrivate": false,
+            "pattern": "",
+            "required": false,
+            "maxLength": ""
+          },
+          "multiple": false,
+          "tableView": true,
+          "clearOnHide": true,
+          "label": "Text",
+          "autofocus": false,
+          "inputMask": "",
+          "inputFormat": "plain",
+          "tags": [],
+          "input": true,
+          "spellcheck": true,
+          "unique": false,
+          "properties": {}
+        }
+      ],
+      "hidden": false,
+      "conditional": {
+        "show": "",
+        "eq": "",
+        "when": null
+      },
+      "templates": {
+        "footer": "",
+        "header": "<div class=\"row\"> \n  {%util.eachComponent(components, function(component) { %} \n    <div class=\"col-sm-2\"> \n      {{ component.label }} \n    </div> \n  {% }) %} \n</div>",
+        "row": "<div class=\"row\"> \n  {%util.eachComponent(components, function(component) { %} \n    <div class=\"col-sm-2\"> \n      {{ getView(component, row[component.key]) }} \n    </div> \n  {% }) %} \n  <div class=\"col-sm-2\"> \n    <div class=\"btn-group pull-right\"> \n      <div class=\"btn btn-default editRow\">Edit</div> \n      <div class=\"btn btn-danger removeRow\">Delete</div> \n    </div> \n  </div> \n</div>"
+      },
+      "tree": true,
+      "multiple": false,
+      "tableView": true,
+      "clearOnHide": true,
+      "label": "Edit Grid",
+      "type": "editgrid",
+      "tags": [],
+      "input": true,
+      "protected": false,
+      "lockKey": true,
+      "persistent": true,
+      "key": "fieldEditGrid",
+      "properties": {}
+    },
+    {
+      "rightIcon": "",
+      "conditional": {
+        "show": "",
+        "eq": "",
+        "when": null
+      },
+      "leftIcon": "",
+      "tableView": false,
+      "label": "Submit",
+      "autofocus": false,
+      "type": "button",
+      "disableOnInvalid": false,
+      "tags": [],
+      "input": true,
+      "size": "md",
+      "action": "submit",
+      "block": false,
+      "theme": "primary",
+      "key": "submit",
+      "properties": {}
+    }
+  ],
+  "access": [
+    {
+      "roles": [
+        "5d9ca7cd15a8fa00111c51e5"
+      ],
+      "type": "read_all"
+    }
+  ],
+  "created": "2019-11-12T12:54:35.471Z",
+  "display": "form",
+  "title": "Form With Disabled Fields",
+  "machineName": "form-with-disabled-fields",
+  "path": "forms/form-with-disabled-fields",
+  "submissionAccess": [
+    {
+      "roles": [
+        "5d9ca7cd15a8fa00111c51e5"
+      ],
+      "type": "create_own"
+    },
+    {
+      "roles": [
+        "5d9ca7cd15a8fa00111c51e5"
+      ],
+      "type": "read_own"
+    },
+    {
+      "roles": [
+        "5d9ca7cd15a8fa00111c51e5"
+      ],
+      "type": "update_own"
+    },
+    {
+      "roles": [
+        "5d9ca7cd15a8fa00111c51e5"
+      ],
+      "type": "delete_own"
+    }
+  ],
+  "name": "form-with-disabled-fields",
+  "modified": "2019-11-13T08:09:16.106Z"
+}

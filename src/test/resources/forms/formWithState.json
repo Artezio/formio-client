@@ -1,0 +1,129 @@
+{
+  "_id": "5da6db91d8ee182aa63d4b99",
+  "type": "form",
+  "tags": [
+    "common"
+  ],
+  "owner": "5d78ae5d6054f76273ae02e4",
+  "components": [
+    {
+      "autofocus": false,
+      "input": true,
+      "label": "ButtonWithSubmittedState",
+      "tableView": false,
+      "key": "buttonWithSubmitWithState",
+      "size": "md",
+      "leftIcon": "",
+      "rightIcon": "",
+      "block": false,
+      "action": "saveState",
+      "disableOnInvalid": false,
+      "theme": "primary",
+      "type": "button",
+      "tags": [],
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "properties": {
+        "isSubmissionProcessed": true
+      },
+      "state": "submitted",
+      "lockKey": true
+    },
+    {
+      "autofocus": false,
+      "input": true,
+      "label": "ButtonWithoutSkipDataProcessingProperty",
+      "tableView": false,
+      "key": "buttonWithoutSkipDataProcessingProperty",
+      "size": "md",
+      "leftIcon": "",
+      "rightIcon": "",
+      "block": false,
+      "action": "saveState",
+      "disableOnInvalid": false,
+      "theme": "primary",
+      "type": "button",
+      "tags": [],
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "properties": {},
+      "state": "submittedWithoutProperty",
+      "lockKey": true
+    },
+    {
+      "autofocus": false,
+      "input": true,
+      "label": "ButtonWithCanceledState",
+      "tableView": false,
+      "key": "buttonWithCanceledState",
+      "size": "md",
+      "leftIcon": "",
+      "rightIcon": "",
+      "block": false,
+      "action": "saveState",
+      "disableOnInvalid": false,
+      "theme": "primary",
+      "type": "button",
+      "tags": [],
+      "conditional": {
+        "show": "",
+        "when": null,
+        "eq": ""
+      },
+      "properties": {
+        "isSubmissionProcessed": false
+      },
+      "state": "canceled",
+      "lockKey": true
+    }
+  ],
+  "display": "form",
+  "submissionAccess": [
+    {
+      "roles": [
+        "5d78ae586054f76db9ae02d7"
+      ],
+      "type": "create_own"
+    },
+    {
+      "roles": [
+        "5d78ae586054f76db9ae02d7"
+      ],
+      "type": "read_own"
+    },
+    {
+      "roles": [
+        "5d78ae586054f76db9ae02d7"
+      ],
+      "type": "update_own"
+    },
+    {
+      "roles": [
+        "5d78ae586054f76db9ae02d7"
+      ],
+      "type": "delete_own"
+    }
+  ],
+  "title": "Form With State",
+  "name": "form-with-state",
+  "path": "form-with-state",
+  "access": [
+    {
+      "roles": [
+        "5d78ae576054f70922ae02d6",
+        "5d78ae586054f76db9ae02d7",
+        "5d78ae586054f72992ae02d8"
+      ],
+      "type": "read_all"
+    }
+  ],
+  "created": "2019-10-16T08:57:53.349Z",
+  "modified": "2019-10-16T08:57:53.356Z",
+  "machineName": "form-with-state"
+}
