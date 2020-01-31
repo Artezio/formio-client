@@ -11,18 +11,15 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.*;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import net.minidev.json.JSONArray;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.concurrent.ConcurrentException;
-import org.apache.commons.lang3.concurrent.LazyInitializer;
 import org.camunda.bpm.BpmPlatform;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngines;
 import org.camunda.bpm.engine.RepositoryService;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.servlet.ServletContext;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -49,6 +46,8 @@ public class FormioClient implements FormClient {
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
     private final static String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
+    private final static String EMBEDDED_APP_FORM_STORING_PROTOCOL = "embedded:app:";
+    private final static String EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL = "embedded:deployment:";
     private final static ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
@@ -60,28 +59,14 @@ public class FormioClient implements FormClient {
     private NodeJsProcessor nodeJsProcessor;
     @Inject
     private FileAttributeConverter fileAttributeConverter;
-
-    RepositoryService getRepositoryService() {
-        return getProcessEngine().getRepositoryService();
-    }
-
-    /**
-     * Extracted from https://github.com/camunda/camunda-bpm-platform/blob/master/engine-rest/engine-rest/src/main/java/org/camunda/bpm/engine/rest/impl/application/ContainerManagedProcessEngineProvider.java
-     * Changes are: added engine name
-     */
-    private ProcessEngine getProcessEngine() {
-        String processEngineName = Optional.ofNullable(PROCESS_ENGINE_NAME).orElse(ProcessEngines.NAME_DEFAULT);
-        ProcessEngine defaultProcessEngine = BpmPlatform.getProcessEngineService().getProcessEngine(processEngineName);
-        return defaultProcessEngine != null
-            ? defaultProcessEngine
-            : ProcessEngines.getProcessEngine(processEngineName);
-    }
+    @Inject
+    private ServletContext servletContext;
 
     @Override
-    public String getFormWithData(String formPath, String deploymentId, ObjectNode taskVariables) {
+    public String getFormWithData(String formKey, String deploymentId, ObjectNode taskVariables) {
         try {
-            JsonNode form = getForm(formPath, deploymentId);
-            JsonNode cleanData = cleanUnusedData(formPath, deploymentId, taskVariables);
+            JsonNode form = getForm(deploymentId, formKey);
+            JsonNode cleanData = cleanUnusedData(formKey, deploymentId, taskVariables);
             JsonNode data = wrapGridData(cleanData, form);
             ((ObjectNode) form).set("data", data);
             return form.toString();
@@ -91,48 +76,95 @@ public class FormioClient implements FormClient {
     }
 
     @Override
-    public boolean shouldProcessSubmission(String formPath, String deploymentId, String submissionState) {
-        JsonNode formDefinition = getForm(formPath, deploymentId);
-        String cacheKey = String.format("%s-%s-%s", deploymentId, formPath, submissionState);
+    public boolean shouldProcessSubmission(String formKey, String deploymentId, String submissionState) {
+        JsonNode formDefinition = getForm(deploymentId, formKey);
+        String cacheKey = String.format("%s-%s-%s", deploymentId, formKey, submissionState);
         return SUBMISSION_PROCESSING_DECISIONS_CACHE.computeIfAbsent(
                 cacheKey,
                 key -> shouldProcessSubmission(formDefinition, submissionState));
     }
 
-    public String dryValidationAndCleanup(String formPath, String deploymentId, ObjectNode submittedVariables,
+    @Override
+    public String dryValidationAndCleanup(String formKey, String deploymentId, ObjectNode submittedVariables,
                                           ObjectNode taskVariables) {
         try {
-            String formDefinition = getForm(formPath, deploymentId).toString();
+            String formDefinition = getForm(deploymentId, formKey).toString();
             taskVariables = convertFilesInData(formDefinition, taskVariables, fileAttributeConverter::toFormioFile);
-            ObjectNode formVariables = (ObjectNode)getFormVariables(formPath, deploymentId, submittedVariables, taskVariables);
+            ObjectNode formVariables = (ObjectNode)getFormVariables(deploymentId, formKey, submittedVariables, taskVariables);
             String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(formVariables));
             byte[] validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition, submissionData);
             JsonNode cleanData = getDataFromScriptExecutionResult(validationResult);
-            JsonNode unwrappedCleanData = unwrapGridData(cleanData, formPath, deploymentId);
+            JsonNode unwrappedCleanData = unwrapGridData(cleanData, formKey, deploymentId);
             return convertFilesInData(formDefinition, (ObjectNode) unwrappedCleanData, fileAttributeConverter::toCamundaFile).toString();
         } catch (Exception ex) {
             throw new FormValidationException(ex);
         }
     }
 
-    private JsonNode getForm(String formPath, String deploymentId) {
-        String formPathWithExt = !formPath.endsWith(".json") ? formPath.concat(".json") : formPath;
-        String cacheKey = String.format("%s-%s", deploymentId, formPath);
-        JsonNode form = FORM_CACHE.computeIfAbsent(cacheKey,
-                key -> {
-                    try {
-                        InputStream resourceAsStream = getRepositoryService().getResourceAsStream(deploymentId, formPathWithExt);
-                        JsonNode readTreev = JSON_MAPPER.readTree(resourceAsStream);
-                        return readTreev;
-                    } catch (IOException e) {
-                        throw new RuntimeException("Unable to parse the form json.", e);
-                    }
-                });
-        return expandSubforms(form, deploymentId);
+    @Override
+    public List<String> getFormVariableNames(String formKey, String deploymentId) {
+        return Optional.ofNullable(getChildComponents(getForm(deploymentId, formKey)))
+                .map(Collection::stream)
+                .orElse(Stream.empty())
+                .filter(component -> component.path("input").asBoolean())
+                .filter(component -> StringUtils.isNotBlank(component.path("key").asText()))
+                .map(component -> component.get("key").asText())
+                .collect(Collectors.toList());
     }
 
-    private JsonNode cleanUnusedData(String formPath, String deploymentId, ObjectNode taskData) throws IOException {
-        JsonNode formDefinition = getForm(formPath, deploymentId);
+    private JsonNode getForm(String deploymentId, String formKey) {
+        String cacheKey = String.format("%s-%s", deploymentId, formKey);
+        return FORM_CACHE.computeIfAbsent(cacheKey, key -> loadForm(deploymentId, formKey));
+    }
+
+    private JsonNode getSubform(String formKey, String deploymentId, String rootFormStoringProtocol) {
+        try {
+            Function<String, InputStream> formResourceProvider = rootFormStoringProtocol.startsWith(EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL)
+                    ? formPath -> getRepositoryService().getResourceAsStream(deploymentId, formPath)
+                    : formPath -> servletContext.getResourceAsStream(formPath);
+            return loadForm(formResourceProvider, deploymentId, formKey, rootFormStoringProtocol);
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to parse the subform json.", e);
+        }
+    }
+
+    private JsonNode loadForm(String deploymentId, String formKey) {
+        try {
+            Function<String, InputStream> formResourceProvider;
+            String formStoringProtocol;
+            if (formKey.startsWith(EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL)) {
+                formResourceProvider = formPath -> getRepositoryService().getResourceAsStream(deploymentId, formPath);
+                formStoringProtocol = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL;
+            } else {
+                formResourceProvider = formPath -> servletContext.getResourceAsStream(formPath);
+                formStoringProtocol = EMBEDDED_APP_FORM_STORING_PROTOCOL;
+            }
+            return loadForm(formResourceProvider, deploymentId, formKey, formStoringProtocol);
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to parse the form json.", e);
+        }
+    }
+
+    private JsonNode loadForm(Function<String, InputStream> formResourceProvider, String deploymentId, String formKey,
+                              String formStoringProtocol) throws IOException {
+        String formPath = getFormPath(formKey);
+        try (InputStream formResource = formResourceProvider.apply(formPath)) {
+            JsonNode form = JSON_MAPPER.readTree(formResource);
+            return expandSubforms(form, deploymentId, formStoringProtocol);
+        }
+    }
+
+    private String getFormPath(String formKey) {
+        if (formKey.startsWith(EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL)) {
+            formKey = formKey.substring(EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL.length());
+        } else if (formKey.startsWith(EMBEDDED_APP_FORM_STORING_PROTOCOL)) {
+            formKey = formKey.substring(EMBEDDED_APP_FORM_STORING_PROTOCOL.length());
+        }
+        return !formKey.endsWith(".json") ? formKey.concat(".json") : formKey;
+    }
+
+    private JsonNode cleanUnusedData(String formKey, String deploymentId, ObjectNode taskData) throws IOException {
+        JsonNode formDefinition = getForm(deploymentId, formKey);
         ObjectNode formioSubmissionData = toFormIoSubmissionData(taskData);
         formioSubmissionData = convertFilesInData(formDefinition.toString(), formioSubmissionData, fileAttributeConverter::toFormioFile);
         String submissionData = JSON_MAPPER.writeValueAsString(formioSubmissionData);
@@ -147,32 +179,32 @@ public class FormioClient implements FormClient {
                 : JSON_MAPPER.createObjectNode();
     }
 
-    protected JsonNode expandSubforms(JsonNode form, String deploymentId) {
+    protected JsonNode expandSubforms(JsonNode form, String deploymentId, String rootFormStoringProtocol) {
         Collector<JsonNode, ArrayNode, ArrayNode> arrayNodeCollector = Collector
                 .of(JSON_MAPPER::createArrayNode, ArrayNode::add, ArrayNode::addAll);
-        Function<JsonNode, JsonNode> subformExpandFunction = getSubformExpandFunction(deploymentId);
+        Function<JsonNode, JsonNode> expandSubformsFunction = getExpandSubformsFunction(deploymentId, rootFormStoringProtocol);
         JsonNode components = toStream(form.get("components"))
-                .map(subformExpandFunction)
+                .map(expandSubformsFunction)
                 .collect(arrayNodeCollector);
         return ((ObjectNode) form).set("components", components);
     }
 
-    private Function<JsonNode, JsonNode> getSubformExpandFunction(String deploymentId) {
+    private Function<JsonNode, JsonNode> getExpandSubformsFunction(String deploymentId, String rootFormStoringProtocol) {
         return component -> {
             if (hasTypeOf(component, "container") || isArrayComponent(component)) {
-                return expandSubforms(component, deploymentId);
+                return expandSubforms(component, deploymentId, rootFormStoringProtocol);
             } else if (hasTypeOf(component, "form")) {
-                return convertToContainer(component, deploymentId);
+                return convertToContainer(component, deploymentId, rootFormStoringProtocol);
             } else {
                 return component;
             }
         };
     }
 
-    private JsonNode convertToContainer(JsonNode form, String deploymentId) {
-        String formResourceName = form.get("key").asText() + ".json";
+    private JsonNode convertToContainer(JsonNode form, String deploymentId, String rootFormStoringProtocol) {
+        String formKey = form.get("key").asText();
         JsonNode container = convertToContainer(form);
-        JsonNode components = getForm(formResourceName, deploymentId).get("components").deepCopy();
+        JsonNode components = getSubform(formKey, deploymentId, rootFormStoringProtocol).get("components").deepCopy();
         ((ObjectNode) container).replace("components", components);
         return container;
     }
@@ -284,8 +316,8 @@ public class FormioClient implements FormClient {
         }
     }
 
-    protected JsonNode unwrapGridData(JsonNode data, String formPath, String deploymentId) {
-        JsonNode formDefinition = getForm(formPath, deploymentId);
+    protected JsonNode unwrapGridData(JsonNode data, String formKey, String deploymentId) {
+        JsonNode formDefinition = getForm(deploymentId, formKey);
         return unwrapGridData(data, formDefinition);
     }
 
@@ -376,20 +408,9 @@ public class FormioClient implements FormClient {
                 .spliteratorUnknownSize(node.fields(), Spliterator.ORDERED), false);
     }
 
-    @Override
-    public List<String> getFormVariableNames(String formPath, String deploymentId) {
-        return Optional.ofNullable(getChildComponents(getForm(formPath, deploymentId)))
-                .map(Collection::stream)
-                .orElse(Stream.empty())
-                .filter(component -> component.path("input").asBoolean())
-                .filter(component -> StringUtils.isNotBlank(component.path("key").asText()))
-                .map(component -> component.get("key").asText())
-                .collect(Collectors.toList());
-    }
-
-    private JsonNode getFormVariables(String formPath, String deploymentId, ObjectNode submittedVariables,
+    private JsonNode getFormVariables(String deploymentId, String formKey, ObjectNode submittedVariables,
                                       ObjectNode taskVariables) {
-        return getFormVariables(getChildComponents(getForm(formPath, deploymentId)), submittedVariables, taskVariables);
+        return getFormVariables(getChildComponents(getForm(deploymentId, formKey)), submittedVariables, taskVariables);
     }
 
     private JsonNode getFormVariables(List<JsonNode> formComponents, JsonNode submittedVariables,
@@ -520,8 +541,24 @@ public class FormioClient implements FormClient {
 
     private boolean isFileVariable(String variableName, String formDefinition) {
         Function<String, JSONArray> fileFieldSearch = key -> JsonPath.read(formDefinition, String.format("$..[?(@.type == 'file' && @.key == '%s')]", variableName));
-        JSONArray fileField = FILE_FIELDS_CACHE.computeIfAbsent(formDefinition + "." + variableName, fileFieldSearch);
+        JSONArray fileField = FILE_FIELDS_CACHE.computeIfAbsent(formDefinition + "-" + variableName, fileFieldSearch);
         return !fileField.isEmpty();
+    }
+
+    private RepositoryService getRepositoryService() {
+        return getProcessEngine().getRepositoryService();
+    }
+
+    /**
+     * Extracted from https://github.com/camunda/camunda-bpm-platform/blob/master/engine-rest/engine-rest/src/main/java/org/camunda/bpm/engine/rest/impl/application/ContainerManagedProcessEngineProvider.java
+     * Changes are: added engine name
+     */
+    private ProcessEngine getProcessEngine() {
+        String processEngineName = Optional.ofNullable(PROCESS_ENGINE_NAME).orElse(ProcessEngines.NAME_DEFAULT);
+        ProcessEngine defaultProcessEngine = BpmPlatform.getProcessEngineService().getProcessEngine(processEngineName);
+        return defaultProcessEngine != null
+                ? defaultProcessEngine
+                : ProcessEngines.getProcessEngine(processEngineName);
     }
 
 }
