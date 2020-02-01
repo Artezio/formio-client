@@ -11,16 +11,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.*;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import net.minidev.json.JSONArray;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.concurrent.ConcurrentException;
-import org.apache.commons.lang3.concurrent.LazyInitializer;
 import org.camunda.bpm.BpmPlatform;
 import org.camunda.bpm.engine.ProcessEngine;
 import org.camunda.bpm.engine.ProcessEngines;
 import org.camunda.bpm.engine.RepositoryService;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.io.IOException;

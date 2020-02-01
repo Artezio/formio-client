@@ -11,6 +11,7 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.*;
+import java.util.function.Function;
 
 @Named
 public class NodeJsProcessor {
@@ -53,7 +54,8 @@ public class NodeJsProcessor {
 
     private Process runNodeJs(String script, String[] args) throws IOException {
         Process process = new ProcessBuilder("node").start();
-        String command = String.format(script, args[0], args[1]);
+        Function<String, String> escapeDoubleQuotes = string -> string.replaceAll("\"", "\\\\\"");
+        String command = String.format(script, escapeDoubleQuotes.apply(args[0]), escapeDoubleQuotes.apply(args[1]));
         try (BufferedWriter outputStream = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()))) {
             outputStream.write(command);
             outputStream.newLine();

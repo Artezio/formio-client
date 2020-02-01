@@ -46,7 +46,7 @@ import static org.mockito.Mockito.when;
 @PrepareForTest(BpmPlatform.class)
 public class FormioClientTest {
 
-    private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
+    private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "cleanUpAndValidate.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
 
     @Rule
