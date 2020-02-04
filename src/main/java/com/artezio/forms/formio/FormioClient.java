@@ -43,7 +43,7 @@ public class FormioClient implements FormClient {
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private final static String PROCESS_ENGINE_NAME = System.getenv("PROCESS_ENGINE_NAME");
-    private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "dryValidationAndCleanUp.js";
+    private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "cleanUpAndValidate.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
     private final static String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
     private final static String EMBEDDED_APP_FORM_STORING_PROTOCOL = "embedded:app:";
