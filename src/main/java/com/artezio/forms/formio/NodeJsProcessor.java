@@ -4,10 +4,7 @@ import com.artezio.forms.formio.exceptions.FormioProcessorException;
 import org.apache.commons.io.IOUtils;
 
 import javax.inject.Named;
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -32,8 +29,8 @@ public class NodeJsProcessor {
 
     private StandardStreamsData readStandardStreams(Process process) throws InterruptedException, ExecutionException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        Future<byte[]> stdoutData = executor.submit(() -> IOUtils.toByteArray(process.getInputStream()));
-        Future<byte[]> stderrData = executor.submit(() -> IOUtils.toByteArray(process.getErrorStream()));
+        Future<byte[]> stdoutData = executor.submit(() -> {try (InputStream stdout = process.getInputStream()) {return IOUtils.toByteArray(stdout);}});
+        Future<byte[]> stderrData = executor.submit(() -> {try (InputStream stderr = process.getErrorStream()) {return IOUtils.toByteArray(stderr);}});
         executor.shutdown();
         boolean taskExecutionCompleted = executor.awaitTermination(30, TimeUnit.SECONDS);
         if (!taskExecutionCompleted) {
