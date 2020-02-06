@@ -30,6 +30,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
@@ -384,7 +385,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException {
+    public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
@@ -398,7 +399,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException {
+    public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
@@ -412,7 +413,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException {
+    public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
         String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
@@ -426,7 +427,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void testExpandSubforms_FormHasSubform() throws IOException {
+    public void testExpandSubforms_FormHasSubform() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubform.json";
         String childFormPath = "subform.json";
         String deploymentId = "1";
@@ -441,7 +442,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void testExpandSubforms_FormHasSubformInContainer() throws IOException {
+    public void testExpandSubforms_FormHasSubformInContainer() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformInContainer.json";
         String subformPath = "subform.json";
         String deploymentId = "1";
@@ -456,7 +457,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void testExpandSubforms_FormHasSubformsInArrays() throws IOException {
+    public void testExpandSubforms_FormHasSubformsInArrays() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformsInArrays.json";
         String childFormPath = "subform.json";
         String deploymentId = "1";
@@ -474,7 +475,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void testExpandSubforms_FormHasSubformInOtherSubform() throws IOException {
+    public void testExpandSubforms_FormHasSubformInOtherSubform() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformInAnotherSubform.json";
         String childFormPath1 = "formWithSubform.json";
         String childFormPath2 = "subform.json";
@@ -567,8 +568,8 @@ public class FormioClientTest {
                 .spliteratorUnknownSize(arrayNode.elements(), Spliterator.ORDERED), false);
     }
 
-    private File getFile(String fileName) {
-        return new File(FormioClientTest.class.getClassLoader().getResource(fileName).getFile());
+    private File getFile(String fileName) throws URISyntaxException {
+        return new File(getClass().getClassLoader().getResource(fileName).toURI());
     }
 
 }
