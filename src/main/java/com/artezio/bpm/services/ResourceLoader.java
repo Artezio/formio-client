@@ -10,6 +10,9 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.servlet.ServletContext;
 import java.io.InputStream;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,5 +68,9 @@ public class ResourceLoader {
                 ? defaultProcessEngine
                 : ProcessEngines.getProcessEngine(processEngineName);
     }
+
+	public List<Object> listResources(String deploymentId, String string, String formKey) {
+		return Collections.emptyList();
+	}
 
 }
