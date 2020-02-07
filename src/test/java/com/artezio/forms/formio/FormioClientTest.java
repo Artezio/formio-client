@@ -1,5 +1,6 @@
 package com.artezio.forms.formio;
 
+import com.artezio.bpm.services.ResourceLoader;
 import com.artezio.bpm.services.integration.Base64UrlFileStorage;
 import com.artezio.bpm.services.integration.FileStorage;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -24,7 +25,6 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import javax.servlet.ServletContext;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -38,8 +38,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -49,7 +48,8 @@ public class FormioClientTest {
 
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "cleanUpAndValidate.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
-    private static final String EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL = "embedded:deployment:";
+    private static final String EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL = "embedded:deployment:";
+    private static final String DEFAULT_FORM_STORAGE_PROTOCOL = "";
 
     @Rule
     public ProcessEngineRule processEngineRule = new ProcessEngineRule();
@@ -61,7 +61,7 @@ public class FormioClientTest {
     @Mock
     private ProcessEngine processEngine;
     @Mock
-    private ServletContext servletContext;
+    private ResourceLoader resourceLoader;
     @InjectMocks
     private FormioClient formioClient = new FormioClient();
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -105,10 +105,12 @@ public class FormioClientTest {
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             byte[] scriptResult = expected.toString().getBytes();
-            when(servletContext.getResourceAsStream(formPath)).thenReturn(webResource);
             when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(webResource);
 
-            String actual = formioClient.getFormWithData(formKey, deploymentId, data);
+            String actual = formioClient.getFormWithData(deploymentId, formKey, data);
 
             assertEquals(expected.toString(), actual);
         }
@@ -118,6 +120,7 @@ public class FormioClientTest {
     public void testGetFormWithData_FormIsInApplication_FormKeyHasNoPrefix() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "testForm.json";
+        String formKey = formPath;
         ObjectNode data = objectMapper.createObjectNode();
         ObjectNode submissionData = objectMapper.createObjectNode();
         submissionData.set("data", data);
@@ -128,10 +131,12 @@ public class FormioClientTest {
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             byte[] scriptResult = expected.toString().getBytes();
-            when(servletContext.getResourceAsStream(formPath)).thenReturn(webResource);
             when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(webResource);
 
-            String actual = formioClient.getFormWithData(formPath, deploymentId, data);
+            String actual = formioClient.getFormWithData(deploymentId, formPath, data);
 
             assertEquals(expected.toString(), actual);
         }
@@ -152,10 +157,12 @@ public class FormioClientTest {
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             byte[] scriptResult = expected.toString().getBytes();
-            when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
             when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-            String actual = formioClient.getFormWithData(formKey, deploymentId, data);
+            String actual = formioClient.getFormWithData(deploymentId, formKey, data);
 
             assertEquals(expected.toString(), actual);
         }
@@ -165,7 +172,7 @@ public class FormioClientTest {
     public void testGetFormWithData_NoDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "testForm.json";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
         ObjectNode data = objectMapper.createObjectNode();
         ObjectNode submissionData = objectMapper.createObjectNode();
         submissionData.set("data", data);
@@ -176,10 +183,12 @@ public class FormioClientTest {
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             byte[] scriptResult = expected.toString().getBytes();
-            when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
             when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-            String actual = formioClient.getFormWithData(formKey, deploymentId, data);
+            String actual = formioClient.getFormWithData(deploymentId, formKey, data);
 
             assertEquals(expected.toString(), actual);
         }
@@ -189,7 +198,7 @@ public class FormioClientTest {
     public void testGetFormWithData_ExistentDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "testForm.json";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
 
         ObjectNode taskData = objectMapper.createObjectNode();
         ArrayNode taskFile = getCamundaFileData("testForm.json", "application/json");
@@ -217,10 +226,12 @@ public class FormioClientTest {
             expectedData.set("testFile", taskFile);
             ((ObjectNode) expected).set("data", expectedData);
             byte[] scriptResultBytes = scriptResult.toString().getBytes();
-            when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
             when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString())).thenReturn(scriptResultBytes);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-            String actual = formioClient.getFormWithData(formKey, deploymentId, taskData);
+            String actual = formioClient.getFormWithData(deploymentId, formKey, taskData);
             JsonNode actualJson = objectMapper.readTree(actual);
 
             assertTrue(actualJson.has("data"));
@@ -236,7 +247,7 @@ public class FormioClientTest {
     public void testGetFormWithData_NonexistentDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/testForm.json";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
 
         ObjectNode data = objectMapper.createObjectNode();
         ArrayNode multiFileNode = getCamundaFileData("testForm.json", "application/json");
@@ -250,10 +261,12 @@ public class FormioClientTest {
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             byte[] scriptResult = expected.toString().getBytes();
-            when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
             when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString())).thenReturn(scriptResult);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-            String actual = formioClient.getFormWithData(formKey, deploymentId, data);
+            String actual = formioClient.getFormWithData(deploymentId, formKey, data);
 
             assertEquals(expected.toString(), actual);
         }
@@ -263,7 +276,7 @@ public class FormioClientTest {
     public void dryValidationAndCleanupTest_NoDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/testForm.json";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
         ObjectNode submittedVariables = objectMapper.createObjectNode();
         ObjectNode currentVariables = objectMapper.createObjectNode();
         ObjectNode submissionData = objectMapper.createObjectNode();
@@ -275,10 +288,12 @@ public class FormioClientTest {
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             byte[] scriptResult = expected.toString().getBytes();
-            when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
             when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-            String actual = formioClient.dryValidationAndCleanup(formKey, deploymentId, submittedVariables, currentVariables);
+            String actual = formioClient.dryValidationAndCleanup(deploymentId, formKey, submittedVariables, currentVariables);
 
             assertEquals(objectMapper.writeValueAsString(currentVariables), actual);
         }
@@ -288,7 +303,7 @@ public class FormioClientTest {
     public void dryValidationAndCleanupTest_ValidDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/test.json";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
         ObjectNode currentVariables = objectMapper.createObjectNode();
         ObjectNode submittedVariables = objectMapper.createObjectNode();
         submittedVariables.put("text", "123");
@@ -300,10 +315,12 @@ public class FormioClientTest {
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.valueToTree(submittedVariables));
             byte[] scriptResult = expected.toString().getBytes();
-            when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
             when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submissionData))).thenReturn(scriptResult);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-            String actual = formioClient.dryValidationAndCleanup(formKey, deploymentId, submittedVariables, currentVariables);
+            String actual = formioClient.dryValidationAndCleanup(deploymentId, formKey, submittedVariables, currentVariables);
 
             assertEquals(objectMapper.writeValueAsString(submittedVariables), actual);
         }
@@ -313,7 +330,7 @@ public class FormioClientTest {
     public void dryValidationAndCleanupTest_ValidDataWithChangedReadOnlyVariablePassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/test.json";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
         ObjectNode currentVariables = objectMapper.createObjectNode();
         currentVariables.put("readOnly", "test");
         ObjectNode submittedVariables = objectMapper.createObjectNode();
@@ -330,10 +347,12 @@ public class FormioClientTest {
             ObjectNode scriptResult = objectMapper.createObjectNode();
             scriptResult.set("data", objectMapper.valueToTree(expected));
             byte[] scriptResultBytes = formVariables.toString().getBytes();
-            when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
             when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(formVariables))).thenReturn(scriptResultBytes);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-            String actual = formioClient.dryValidationAndCleanup(formKey, deploymentId, submittedVariables, currentVariables);
+            String actual = formioClient.dryValidationAndCleanup(deploymentId, formKey, submittedVariables, currentVariables);
 
             assertEquals(expected, objectMapper.readTree(actual));
         }
@@ -343,7 +362,7 @@ public class FormioClientTest {
     public void dryValidationAndCleanupTest_InvalidDataPassed() throws IOException {
         String deploymentId = "deploymentId";
         String formPath = "forms/testForm.json";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
 
         ObjectNode currentVariables = objectMapper.createObjectNode();
         ObjectNode submittedVariables = objectMapper.createObjectNode();
@@ -356,11 +375,13 @@ public class FormioClientTest {
             JsonNode expected = formDefinition.deepCopy();
             ((ObjectNode) expected).set("data", objectMapper.createObjectNode());
             byte[] scriptResult = expected.toString().getBytes();
-            when(repositoryService.getResourceAsStream(deploymentId, formPath)).thenReturn(deploymentResource);
             when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), objectMapper.writeValueAsString(submittedVariablesInFormioView)))
                     .thenReturn(scriptResult);
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-            String actual = formioClient.dryValidationAndCleanup(formKey, deploymentId, submittedVariables, currentVariables);
+            String actual = formioClient.dryValidationAndCleanup(deploymentId, formKey, submittedVariables, currentVariables);
 
             assertEquals(objectMapper.writeValueAsString(submittedVariables), actual);
         }
@@ -388,105 +409,144 @@ public class FormioClientTest {
     public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
         String submissionState = "submitted";
 
-        when(repositoryService.getResourceAsStream(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
+        try(FileInputStream deploymentResource = new FileInputStream(getFile("forms/formWithState.json"));) {
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-        boolean actual = formioClient.shouldProcessSubmission(formKey, deploymentId, submissionState);
+            boolean actual = formioClient.shouldProcessSubmission(deploymentId, formKey, submissionState);
 
-        assertTrue(actual);
+            assertTrue(actual);
+        }
     }
 
     @Test
     public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
         String submissionState = "canceled";
 
-        when(repositoryService.getResourceAsStream(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
+        try(FileInputStream deploymentResource = new FileInputStream(getFile("forms/formWithState.json"));) {
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-        boolean actual = formioClient.shouldProcessSubmission(formKey, deploymentId, submissionState);
+            boolean actual = formioClient.shouldProcessSubmission(deploymentId, formKey, submissionState);
 
-        assertFalse(actual);
+            assertFalse(actual);
+        }
     }
 
     @Test
     public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException, URISyntaxException {
         String deploymentId = "deploymentId";
         String formPath = "forms/form-with-state";
-        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL + formPath;
+        String formKey = EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL + formPath;
         String submissionState = "submittedWithoutProperty";
 
-        when(repositoryService.getResourceAsStream(deploymentId, formPath + ".json")).thenReturn(new FileInputStream(getFile("forms/formWithState.json")));
+        try(FileInputStream deploymentResource = new FileInputStream(getFile("forms/formWithState.json"));) {
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL))).thenReturn(deploymentResource);
 
-        boolean actual = formioClient.shouldProcessSubmission(formKey, deploymentId, submissionState);
+            boolean actual = formioClient.shouldProcessSubmission(deploymentId, formKey, submissionState);
 
-        assertTrue(actual);
+            assertTrue(actual);
+        }
     }
 
     @Test
     public void testExpandSubforms_FormHasSubform() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubform.json";
+        String formKey = formPath;
         String childFormPath = "subform.json";
         String deploymentId = "1";
         JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
         JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubform.json"));
 
-        when(repositoryService.getResourceAsStream(deploymentId, childFormPath)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath)));
+        try (InputStream webResource = new FileInputStream(getFile("forms/" + childFormPath))) {
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn("");
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq("")))
+                    .thenReturn(webResource);
 
-        JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL);
-
-        assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
-    }
-
-    @Test
-    public void testExpandSubforms_FormHasSubformInContainer() throws IOException, URISyntaxException {
-        String formPath = "forms/formWithSubformInContainer.json";
-        String subformPath = "subform.json";
-        String deploymentId = "1";
-        JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
-        JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformInContainer.json"));
-
-        when(repositoryService.getResourceAsStream("1", subformPath)).thenReturn(new FileInputStream(getFile("forms/" + subformPath)));
-
-        JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL);
-
-        assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
-    }
-
-    @Test
-    public void testExpandSubforms_FormHasSubformsInArrays() throws IOException, URISyntaxException {
-        String formPath = "forms/formWithSubformsInArrays.json";
-        String childFormPath = "subform.json";
-        String deploymentId = "1";
-        JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
-        JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformsInArrays.json"));
-
-        try (FileInputStream formResource1Call = new FileInputStream(getFile("forms/" + childFormPath));
-             FileInputStream formResource2Call = new FileInputStream(getFile("forms/" + childFormPath))) {
-            when(repositoryService.getResourceAsStream("1", childFormPath)).thenReturn(formResource1Call, formResource2Call);
-
-            JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL);
+            JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, "");
 
             assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
         }
     }
 
     @Test
+    public void testExpandSubforms_FormHasSubformInContainer() throws IOException, URISyntaxException {
+        String formPath = "forms/formWithSubformInContainer.json";
+        String formKey = formPath;
+        String subformPath = "subform.json";
+        String deploymentId = "1";
+        JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
+        JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformInContainer.json"));
+
+        try (InputStream webResource = new FileInputStream(getFile("forms/" + subformPath))) {
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(DEFAULT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(DEFAULT_FORM_STORAGE_PROTOCOL)))
+                    .thenReturn(webResource);
+
+            JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, DEFAULT_FORM_STORAGE_PROTOCOL);
+
+            assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
+        }
+    }
+
+    @Test
+    public void testExpandSubforms_FormHasSubformsInArrays() throws IOException, URISyntaxException {
+        String formPath = "forms/formWithSubformsInArrays.json";
+        String formKey = formPath;
+        String childFormPath = "subform.json";
+        String deploymentId = "1";
+        JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
+        JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformsInArrays.json"));
+
+        try (FileInputStream webResource1Call = new FileInputStream(getFile("forms/" + childFormPath));
+             FileInputStream webResource2Call = new FileInputStream(getFile("forms/" + childFormPath))) {
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(DEFAULT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(DEFAULT_FORM_STORAGE_PROTOCOL)))
+                    .thenReturn(webResource1Call, webResource2Call);
+
+            JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, DEFAULT_FORM_STORAGE_PROTOCOL);
+
+            assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
+
+        }
+    }
+
+    @Test
     public void testExpandSubforms_FormHasSubformInOtherSubform() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformInAnotherSubform.json";
+        String formKey = formPath;
         String childFormPath1 = "formWithSubform.json";
         String childFormPath2 = "subform.json";
         String deploymentId = "1";
         JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
         JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformInAnotherTransformedSubform.json"));
 
-        when(repositoryService.getResourceAsStream("1", childFormPath1)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath1)));
-        when(repositoryService.getResourceAsStream("1", childFormPath2)).thenReturn(new FileInputStream(getFile("forms/" + childFormPath2)));
+        try (FileInputStream webResource1Call = new FileInputStream(getFile("forms/" + childFormPath1));
+             FileInputStream webResource2Call = new FileInputStream(getFile("forms/" + childFormPath2))) {
+            when(resourceLoader.identifyProtocol(formKey)).thenReturn(DEFAULT_FORM_STORAGE_PROTOCOL);
+            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
+            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(DEFAULT_FORM_STORAGE_PROTOCOL)))
+                    .thenReturn(webResource1Call, webResource2Call);
 
-        JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, EMBEDDED_DEPLOYMENT_FORM_STORING_PROTOCOL);
+            JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, DEFAULT_FORM_STORAGE_PROTOCOL);
+
+            assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
+        }
+
+        JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
 
         assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
     }
