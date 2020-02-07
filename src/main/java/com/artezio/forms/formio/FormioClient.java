@@ -16,6 +16,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
@@ -111,7 +113,7 @@ public class FormioClient implements FormClient {
     }
 
     private JsonNode loadForm(String deploymentId, String formKey) {
-        try (InputStream formResource = resourceLoader.loadResource(deploymentId, formKey)) {
+        try (InputStream formResource = resourceLoader.getResource(deploymentId, formKey)) {
             JsonNode form = JSON_MAPPER.readTree(formResource);
             return expandSubforms(form, deploymentId, formKey);
         } catch (IOException e) {
@@ -121,7 +123,7 @@ public class FormioClient implements FormClient {
 
     private JsonNode getSubform(String deploymentId, String formKey, String rootFormKey) {
         formKey = formKey + ".json";
-        try (InputStream formResource = resourceLoader.loadDependentResource(deploymentId, formKey, rootFormKey)) {
+        try (InputStream formResource = resourceLoader.getResource(deploymentId, formKey, rootFormKey)) {
             JsonNode form = JSON_MAPPER.readTree(formResource);
             return expandSubforms(form, deploymentId, rootFormKey);
         } catch (IOException e) {
@@ -510,5 +512,15 @@ public class FormioClient implements FormClient {
         JSONArray fileField = FILE_FIELDS_CACHE.computeIfAbsent(formDefinition + "-" + variableName, fileFieldSearch);
         return !fileField.isEmpty();
     }
+
+	@Override
+	public List<String> listCustomComponents(String deploymentId, String formPath) {
+		return Collections.emptyList();
+	}
+
+	@Override
+	public InputStream getCustomComponent(String deploymentId, String componentName) {
+		return new ByteArrayInputStream("Hello world!".getBytes());
+	}
 
 }

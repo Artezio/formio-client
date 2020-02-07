@@ -25,24 +25,24 @@ public class ResourceLoader {
     @Inject
     private ServletContext servletContext;
 
-    public InputStream loadResource(String deploymentId, String resourceKey) {
+    public InputStream getResource(String deploymentId, String resourceKey) {
         String storageProtocol = identifyProtocol(resourceKey);
         return loadResource(deploymentId, resourceKey, storageProtocol);
     }
 
-    public InputStream loadDependentResource(String deploymentId, String resourceKey, String masterResourceKey) {
+    public InputStream getResource(String deploymentId, String resourceKey, String masterResourceKey) {
         String storageProtocol = identifyProtocol(masterResourceKey);
         return loadResource(deploymentId, resourceKey, storageProtocol);
     }
 
-    private InputStream loadResource(String deploymentId, String rootResourceKey, String storageProtocol) {
+    private InputStream loadResource(String deploymentId, String resourceKey, String storageProtocol) {
         return storageProtocol.equals(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL)
-                ? getRepositoryService().getResourceAsStream(deploymentId, rootResourceKey)
-                : servletContext.getResourceAsStream(rootResourceKey);
+                ? getRepositoryService().getResourceAsStream(deploymentId, resourceKey)
+                : servletContext.getResourceAsStream(resourceKey);
     }
 
-    private String identifyProtocol(String resourceName) {
-        Matcher matcher = RESOURCE_STORAGE_PROTOCOL_PATTERN.matcher(resourceName);
+    private String identifyProtocol(String resourceKey) {
+        Matcher matcher = RESOURCE_STORAGE_PROTOCOL_PATTERN.matcher(resourceKey);
         matcher.find();
         String formStorageProtocol = matcher.group(1);
         return !StringUtils.isNotEmpty(formStorageProtocol)
