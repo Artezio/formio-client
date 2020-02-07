@@ -111,23 +111,19 @@ public class FormioClient implements FormClient {
     }
 
     private JsonNode loadForm(String deploymentId, String formKey) {
-        String storageProtocol = resourceLoader.identifyProtocol(formKey);
-        String formPath = resourceLoader.transformToResourcePath(formKey, ".json");
-        ResourceLoader.ResourceId resourceId = new ResourceLoader.ResourceId(deploymentId, formPath);
-        try (InputStream formResource = resourceLoader.loadResource(resourceId, storageProtocol)) {
+        try (InputStream formResource = resourceLoader.loadResource(deploymentId, formKey)) {
             JsonNode form = JSON_MAPPER.readTree(formResource);
-            return expandSubforms(form, deploymentId, storageProtocol);
+            return expandSubforms(form, deploymentId, formKey);
         } catch (IOException e) {
             throw new RuntimeException("Unable to parse the form json.", e);
         }
     }
 
-    private JsonNode getSubform(String deploymentId, String formKey, String rootFormStorageProtocol) {
-        String formPath = resourceLoader.transformToResourcePath(formKey, ".json");
-        ResourceLoader.ResourceId resourceId = new ResourceLoader.ResourceId(deploymentId, formPath);
-        try (InputStream formResource = resourceLoader.loadResource(resourceId, rootFormStorageProtocol)) {
+    private JsonNode getSubform(String deploymentId, String formKey, String rootFormKey) {
+        formKey = formKey + ".json";
+        try (InputStream formResource = resourceLoader.loadDependentResource(deploymentId, formKey, rootFormKey)) {
             JsonNode form = JSON_MAPPER.readTree(formResource);
-            return expandSubforms(form, deploymentId, rootFormStorageProtocol);
+            return expandSubforms(form, deploymentId, rootFormKey);
         } catch (IOException e) {
             throw new RuntimeException("Unable to parse the subform json.", e);
         }
@@ -149,10 +145,10 @@ public class FormioClient implements FormClient {
                 : JSON_MAPPER.createObjectNode();
     }
 
-    protected JsonNode expandSubforms(JsonNode form, String deploymentId, String rootFormStoringProtocol) {
+    protected JsonNode expandSubforms(JsonNode form, String deploymentId, String rootFormStorageProtocol) {
         Collector<JsonNode, ArrayNode, ArrayNode> arrayNodeCollector = Collector
                 .of(JSON_MAPPER::createArrayNode, ArrayNode::add, ArrayNode::addAll);
-        Function<JsonNode, JsonNode> expandSubformsFunction = getExpandSubformsFunction(deploymentId, rootFormStoringProtocol);
+        Function<JsonNode, JsonNode> expandSubformsFunction = getExpandSubformsFunction(deploymentId, rootFormStorageProtocol);
         JsonNode components = toStream(form.get("components"))
                 .map(expandSubformsFunction)
                 .collect(arrayNodeCollector);
