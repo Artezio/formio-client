@@ -4,21 +4,23 @@ import com.artezio.forms.formio.exceptions.FormioProcessorException;
 import org.apache.commons.io.IOUtils;
 
 import javax.inject.Named;
-import java.io.*;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.*;
-import java.util.function.Function;
 
 @Named
 public class NodeJsProcessor {
 
     private static final Map<String, String> SCRIPTS_CACHE = new ConcurrentHashMap<>();
 
-    public synchronized byte[] executeScript(String scriptName, String... args) throws IOException {
+    public synchronized byte[] executeScript(String scriptName, String formDefinition, String submissionData, String customComponentsDir) throws IOException {
         try {
             String script = loadScript(scriptName);
-            Process nodeJs = runNodeJs(script, args);
+            Process nodeJs = runNodeJs(script, formDefinition, submissionData, customComponentsDir);
             StandardStreamsData standardStreamsData = readStandardStreams(nodeJs);
             checkErrors(standardStreamsData.stderrData);
             return standardStreamsData.stdoutData;
@@ -49,16 +51,26 @@ public class NodeJsProcessor {
         });
     }
 
-    private Process runNodeJs(String script, String[] args) throws IOException {
+    private Process runNodeJs(String script, String formDefinition, String submissionData, String customComponentsDir) throws IOException {
         Process process = new ProcessBuilder("node").start();
-        Function<String, String> escapeDoubleQuotes = string -> string.replaceAll("\"", "\\\\\"");
-        String command = String.format(script, escapeDoubleQuotes.apply(args[0]), escapeDoubleQuotes.apply(args[1]));
+        String command = createCommand(script, formDefinition, submissionData, customComponentsDir);
         try (BufferedWriter outputStream = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()))) {
             outputStream.write(command);
             outputStream.newLine();
             outputStream.flush();
             return process;
         }
+    }
+
+    private String createCommand(String script, String formDefinition, String submissionData, String customComponentsDir) {
+        formDefinition = escapeDoubleQuotes(formDefinition);
+        submissionData = escapeDoubleQuotes(submissionData);
+        customComponentsDir = escapeDoubleQuotes(customComponentsDir);
+        return String.format(script, formDefinition, submissionData, customComponentsDir);
+    }
+
+    private String escapeDoubleQuotes(String string) {
+        return string.replaceAll("\"", "\\\\\"");
     }
 
     private void checkErrors(byte[] stderrContent) {

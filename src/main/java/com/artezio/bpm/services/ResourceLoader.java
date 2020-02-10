@@ -10,7 +10,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.servlet.ServletContext;
 import java.io.InputStream;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -29,28 +28,28 @@ public class ResourceLoader {
     private ServletContext servletContext;
 
     public InputStream getResource(String deploymentId, String resourceKey) {
-        String storageProtocol = identifyProtocol(resourceKey);
+        String storageProtocol = identifyStorageProtocol(resourceKey);
         return loadResource(deploymentId, resourceKey, storageProtocol);
     }
 
     public InputStream getResource(String deploymentId, String resourceKey, String masterResourceKey) {
-        String storageProtocol = identifyProtocol(masterResourceKey);
+        String storageProtocol = identifyStorageProtocol(masterResourceKey);
         return loadResource(deploymentId, resourceKey, storageProtocol);
     }
 
-    private InputStream loadResource(String deploymentId, String resourceKey, String storageProtocol) {
-        return storageProtocol.equals(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL)
-                ? getRepositoryService().getResourceAsStream(deploymentId, resourceKey)
-                : servletContext.getResourceAsStream(resourceKey);
-    }
-
-    private String identifyProtocol(String resourceKey) {
+    public String identifyStorageProtocol(String resourceKey) {
         Matcher matcher = RESOURCE_STORAGE_PROTOCOL_PATTERN.matcher(resourceKey);
         matcher.find();
         String formStorageProtocol = matcher.group(1);
         return !StringUtils.isNotEmpty(formStorageProtocol)
                 ? formStorageProtocol
                 : EMBEDDED_APP_FORM_STORAGE_PROTOCOL;
+    }
+
+    private InputStream loadResource(String deploymentId, String resourceKey, String storageProtocol) {
+        return storageProtocol.equals(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL)
+                ? getRepositoryService().getResourceAsStream(deploymentId, resourceKey)
+                : servletContext.getResourceAsStream(resourceKey);
     }
 
     private RepositoryService getRepositoryService() {
@@ -69,7 +68,7 @@ public class ResourceLoader {
                 : ProcessEngines.getProcessEngine(processEngineName);
     }
 
-	public List<Object> listResources(String deploymentId, String string, String formKey) {
+	public List<String> listResourceNames(String deploymentId, String resourceKey, String masterResourceKey) {
 		return Collections.emptyList();
 	}
 
