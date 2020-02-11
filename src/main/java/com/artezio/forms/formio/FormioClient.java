@@ -40,6 +40,7 @@ import static java.util.Arrays.asList;
 @Named
 public class FormioClient implements FormClient {
 
+    private static final String CUSTOM_COMPONENTS_FOLDER = "custom-components";
     private final static Map<String, String> CUSTOM_COMPONENTS_DIR_CACHE = new ConcurrentHashMap<>();
     private final static Path FORMIO_TEMP_DIR;
     static {
@@ -129,19 +130,20 @@ public class FormioClient implements FormClient {
     }
 
     private JsonNode loadForm(String deploymentId, String formKey) {
+	String storageProtocol = resourceLoader.getProtocol(formKey);
         try (InputStream formResource = resourceLoader.getResource(deploymentId, formKey)) {
             JsonNode form = JSON_MAPPER.readTree(formResource);
-            return expandSubforms(form, deploymentId, formKey);
+            return expandSubforms(form, deploymentId, storageProtocol);
         } catch (IOException e) {
             throw new RuntimeException("Unable to parse the form json.", e);
         }
     }
 
-    private JsonNode getSubform(String deploymentId, String formKey, String masterFormKey) {
+    private JsonNode getSubform(String deploymentId, String formKey, String storageProtocol) {
         formKey = formKey + ".json";
-        try (InputStream formResource = resourceLoader.getResource(deploymentId, formKey, masterFormKey)) {
+        try (InputStream formResource = resourceLoader.getResource(deploymentId, storageProtocol, formKey)) {
             JsonNode form = JSON_MAPPER.readTree(formResource);
-            return expandSubforms(form, deploymentId, masterFormKey);
+            return expandSubforms(form, deploymentId, storageProtocol);
         } catch (IOException e) {
             throw new RuntimeException("Unable to parse the subform json.", e);
         }
@@ -164,32 +166,32 @@ public class FormioClient implements FormClient {
                 : JSON_MAPPER.createObjectNode();
     }
 
-    protected JsonNode expandSubforms(JsonNode form, String deploymentId, String masterFormKey) {
+    protected JsonNode expandSubforms(JsonNode form, String deploymentId, String storageProtocol) {
         Collector<JsonNode, ArrayNode, ArrayNode> arrayNodeCollector = Collector
                 .of(JSON_MAPPER::createArrayNode, ArrayNode::add, ArrayNode::addAll);
-        Function<JsonNode, JsonNode> expandSubformsFunction = getExpandSubformsFunction(deploymentId, masterFormKey);
+        Function<JsonNode, JsonNode> expandSubformsFunction = getExpandSubformsFunction(deploymentId, storageProtocol);
         JsonNode components = toStream(form.get("components"))
                 .map(expandSubformsFunction)
                 .collect(arrayNodeCollector);
         return ((ObjectNode) form).set("components", components);
     }
 
-    private Function<JsonNode, JsonNode> getExpandSubformsFunction(String deploymentId, String masterFormKey) {
+    private Function<JsonNode, JsonNode> getExpandSubformsFunction(String deploymentId, String storageProtocol) {
         return component -> {
             if (hasTypeOf(component, "container") || isArrayComponent(component)) {
-                return expandSubforms(component, deploymentId, masterFormKey);
+                return expandSubforms(component, deploymentId, storageProtocol);
             } else if (hasTypeOf(component, "form")) {
-                return convertToContainer(component, deploymentId, masterFormKey);
+                return convertToContainer(component, deploymentId, storageProtocol);
             } else {
                 return component;
             }
         };
     }
 
-    private JsonNode convertToContainer(JsonNode form, String deploymentId, String masterFormKey) {
+    private JsonNode convertToContainer(JsonNode form, String deploymentId, String storageProtocol) {
         String formKey = form.get("key").asText();
         JsonNode container = convertToContainer(form);
-        JsonNode components = getSubform(formKey, deploymentId, masterFormKey).get("components").deepCopy();
+        JsonNode components = getSubform(deploymentId, formKey, storageProtocol).get("components").deepCopy();
         ((ObjectNode) container).replace("components", components);
         return container;
     }
@@ -531,11 +533,12 @@ public class FormioClient implements FormClient {
     }
 
     protected String getCustomComponentsDir(String deploymentId, String formKey) {
-        String cacheKey = String.format("%s-%s", deploymentId, formKey);
+	String storageProtocol = resourceLoader.getProtocol(formKey);
+        String cacheKey = String.format("%s-%s", storageProtocol, deploymentId);
         return CUSTOM_COMPONENTS_DIR_CACHE.computeIfAbsent(cacheKey, key -> {
             try {
-                Path customComponentsDir = createCustomComponentsDir(deploymentId, formKey);
-                populateCustomComponentsDir(customComponentsDir, deploymentId, formKey);
+                Path customComponentsDir = createCustomComponentsDir(deploymentId, storageProtocol);
+                populateCustomComponentsDir(customComponentsDir, deploymentId, storageProtocol);
                 return customComponentsDir.toString();
             } catch (IOException e) {
                 throw new RuntimeException("Could not get custom components directory.", e);
@@ -543,12 +546,12 @@ public class FormioClient implements FormClient {
         });
     }
 
-    private void populateCustomComponentsDir(Path customComponentsDir, String deploymentId, String formKey) {
-        resourceLoader.listResourceNames(deploymentId, ".customComponents", formKey)
+    private void populateCustomComponentsDir(Path customComponentsDir, String deploymentId, String storageProtocol) {
+        resourceLoader.listResources(deploymentId, storageProtocol, CUSTOM_COMPONENTS_FOLDER)
                 .stream()
                 .filter(resourceName -> resourceName.endsWith(".js"))
                 .forEach(resourceName -> {
-                    try (InputStream resource = resourceLoader.getResource(deploymentId, resourceName, formKey)) {
+                    try (InputStream resource = resourceLoader.getResource(deploymentId, storageProtocol, resourceName)) {
                         Path destFile = Paths.get(customComponentsDir.toString(), resourceName);
                         copyToFile(resource, destFile);
                     } catch (IOException e) {
@@ -557,9 +560,8 @@ public class FormioClient implements FormClient {
                 });
     }
 
-    private Path createCustomComponentsDir(String deploymentId, String formKey) throws IOException {
-        String resourceStorageProtocol = resourceLoader.identifyStorageProtocol(formKey);
-        String customComponentDirName = String.format("%s-%s", deploymentId, toDirName(resourceStorageProtocol));
+    private Path createCustomComponentsDir(String deploymentId, String storageProtocol) throws IOException {
+        String customComponentDirName = toSafeFileName(String.format("%s-%s", storageProtocol, deploymentId));
         Path dir = Paths.get(FORMIO_TEMP_DIR.toString(), customComponentDirName);
         return dir.toFile().exists()
                 ? dir
@@ -574,8 +576,8 @@ public class FormioClient implements FormClient {
         Files.write(destination, bytes);
     }
 
-    private String toDirName(String string) {
-        return string.substring(0, string.length() - 1).replace(':', '-');
+    private String toSafeFileName(String inputName) {
+        return inputName.replaceAll("[^a-zA-Z0-9-_\\.]", "-");
     }
 
 	@Override

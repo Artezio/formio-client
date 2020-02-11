@@ -41,7 +41,7 @@ import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(BpmPlatform.class)
@@ -92,50 +92,50 @@ public class FormioClientTest {
 
     @Test
     public void testGetCustomComponentsDir_EmbeddedAppProtocolIsUsed() throws URISyntaxException, IOException {
-        String deploymentId = "1";
-        String formKey = "embedded:app:1";
-        String resourceName = "component.js";
-        List<String> resourceNames = asList(resourceName);
-        String expected = Paths
-                .get(System.getProperty("java.io.tmpdir"), ".formio", "1-embedded-app")
-                .toString();
+	String deploymentId = "1";
+	String protocol = "embedded:app:";
+	String formKey = "embedded:app:1";
+	String resourceName = "component.js";
+	List<String> resourceNames = asList(resourceName);
+	String expected = Paths
+		.get(System.getProperty("java.io.tmpdir"), ".formio", "embedded-app--1")
+		.toString();
 
-        try (InputStream resource = new FileInputStream(getFile("custom-components/component.js"))) {
-            when(resourceLoader.identifyStorageProtocol(formKey)).thenReturn(EMBEDDED_APP_FORM_STORAGE_PROTOCOL);
-            when(resourceLoader.listResourceNames(deploymentId, ".customComponents", formKey)).thenReturn(resourceNames);
-            when(resourceLoader.getResource(deploymentId, resourceName, formKey)).thenReturn(resource);
+	InputStream resource = new FileInputStream(getFile("custom-components/component.js"));
+	when(resourceLoader.getProtocol(formKey)).thenReturn(EMBEDDED_APP_FORM_STORAGE_PROTOCOL);
+	when(resourceLoader.listResources(deploymentId, protocol, "custom-components")).thenReturn(resourceNames);
+	when(resourceLoader.getResource(deploymentId, protocol, resourceName)).thenReturn(resource);
 
-            String actual = formioClient.getCustomComponentsDir(deploymentId, formKey);
-            File actualFile = Paths.get(actual).toFile();
-            actualFile.deleteOnExit();
+	String actual = formioClient.getCustomComponentsDir(deploymentId, formKey);
+	File actualFile = Paths.get(actual).toFile();
+	actualFile.deleteOnExit();
 
-            assertEquals(expected, actual);
-            assertTrue(actualFile.exists());
-        }
+	assertEquals(expected, actual);
+	assertTrue(actualFile.exists());
     }
 
     @Test
     public void testGetCustomComponentsDir_EmbeddedDeploymentProtocolIsUsed() throws URISyntaxException, IOException {
-        String deploymentId = "1";
-        String formKey = "embedded:deployment:1";
-        String resourceName = "component.js";
-        List<String> resourceNames = asList(resourceName);
-        String expected = Paths
-                .get(System.getProperty("java.io.tmpdir"), ".formio", "1-embedded-deployment")
-                .toString();
+	String deploymentId = "1";
+	String protocol = "embedded:deployment:";
+	String formKey = "embedded:deployment:1";
+	String resourceName = "component.js";
+	List<String> resourceNames = asList(resourceName);
+	String expected = Paths
+		.get(System.getProperty("java.io.tmpdir"), ".formio", "embedded-deployment--1")
+		.toString();
 
-        try (InputStream resource = new FileInputStream(getFile("custom-components/component.js"))) {
-            when(resourceLoader.identifyStorageProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
-            when(resourceLoader.listResourceNames(deploymentId, ".customComponents", formKey)).thenReturn(resourceNames);
-            when(resourceLoader.getResource(deploymentId, resourceName, formKey)).thenReturn(resource);
+	InputStream resource = new FileInputStream(getFile("custom-components/component.js"));
+	when(resourceLoader.getProtocol(formKey)).thenReturn(EMBEDDED_DEPLOYMENT_FORM_STORAGE_PROTOCOL);
+	when(resourceLoader.listResources(deploymentId, protocol, "custom-components")).thenReturn(resourceNames);
+	when(resourceLoader.getResource(eq(deploymentId), eq(protocol), eq("component.js"))).thenReturn(resource);
 
-            String actual = formioClient.getCustomComponentsDir(deploymentId, formKey);
-            File actualFile = Paths.get(actual).toFile();
-            actualFile.deleteOnExit();
+	String actual = formioClient.getCustomComponentsDir(deploymentId, formKey);
+	File actualFile = Paths.get(actual).toFile();
+	actualFile.deleteOnExit();
 
-            assertEquals(expected, actual);
-            assertTrue(actualFile.exists());
-        }
+	assertEquals(expected, actual);
+	assertTrue(actualFile.exists());
     }
 
     @Test
@@ -531,45 +531,38 @@ public class FormioClientTest {
     @Test
     public void testExpandSubforms_FormHasSubformInContainer() throws IOException, URISyntaxException {
         String formPath = "forms/formWithSubformInContainer.json";
-        String formKey = formPath;
         String subformPath = "subform.json";
         String deploymentId = "1";
         JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
         JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformInContainer.json"));
 
-        try (InputStream webResource = new FileInputStream(getFile("forms/" + subformPath))) {
-//            when(resourceLoader.identifyProtocol(formKey)).thenReturn(DEFAULT_FORM_STORAGE_PROTOCOL);
-//            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
-//            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(DEFAULT_FORM_STORAGE_PROTOCOL)))
-//                    .thenReturn(webResource);
+        InputStream webResource = new FileInputStream(getFile("forms/" + subformPath));
+        when(resourceLoader.getProtocol(formPath)).thenReturn(DEFAULT_FORM_STORAGE_PROTOCOL);
+        when(resourceLoader.getResource(eq("1"), eq(DEFAULT_FORM_STORAGE_PROTOCOL), any())).thenReturn(webResource);
 
-            JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, DEFAULT_FORM_STORAGE_PROTOCOL);
+        JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, DEFAULT_FORM_STORAGE_PROTOCOL);
 
-            assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
-        }
+        assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
     }
 
     @Test
     public void testExpandSubforms_FormHasSubformsInArrays() throws IOException, URISyntaxException {
-        String formPath = "forms/formWithSubformsInArrays.json";
-        String formKey = formPath;
-        String childFormPath = "subform.json";
-        String deploymentId = "1";
-        JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
-        JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformsInArrays.json"));
+	String formPath = "forms/formWithSubformsInArrays.json";
+	String formKey = formPath;
+	String childFormPath = "subform.json";
+	String deploymentId = "1";
+	JsonNode formDefinition = objectMapper.readTree(getFile(formPath));
+	JsonNode expected = objectMapper.readTree(getFile("forms/formWithTransformedSubformsInArrays.json"));
 
-        try (FileInputStream webResource1Call = new FileInputStream(getFile("forms/" + childFormPath));
-             FileInputStream webResource2Call = new FileInputStream(getFile("forms/" + childFormPath))) {
-//            when(resourceLoader.identifyProtocol(formKey)).thenReturn(DEFAULT_FORM_STORAGE_PROTOCOL);
-//            when(resourceLoader.transformToResourcePath(formKey, ".json")).thenReturn(formPath);
-//            when(resourceLoader.loadResource(any(ResourceLoader.ResourceId.class), eq(DEFAULT_FORM_STORAGE_PROTOCOL)))
-//                    .thenReturn(webResource1Call, webResource2Call);
+	FileInputStream webResource1Call = new FileInputStream(getFile("forms/" + childFormPath));
+	FileInputStream webResource2Call = new FileInputStream(getFile("forms/" + childFormPath));
+	when(resourceLoader.getProtocol(formKey)).thenReturn(DEFAULT_FORM_STORAGE_PROTOCOL);
+	when(resourceLoader.getResource(any(), eq(DEFAULT_FORM_STORAGE_PROTOCOL)))
+		.thenReturn(webResource1Call, webResource2Call);
 
-            JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, DEFAULT_FORM_STORAGE_PROTOCOL);
+	JsonNode actual = formioClient.expandSubforms(formDefinition, deploymentId, DEFAULT_FORM_STORAGE_PROTOCOL);
 
-            assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
-
-        }
+	assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
     }
 
     @Test
