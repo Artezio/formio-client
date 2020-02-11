@@ -567,9 +567,9 @@ public class FormioClient implements FormClient {
     }
 
     private void copyToFile(InputStream source, Path destination) throws IOException {
-        destination = destination.toFile().exists()
-                ? destination
-                : Files.createFile(destination);
+        if (!destination.toFile().exists()) {
+            Files.createFile(destination);
+        }
         byte[] bytes = IOUtils.toByteArray(source);
         Files.write(destination, bytes);
     }

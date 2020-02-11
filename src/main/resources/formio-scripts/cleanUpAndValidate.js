@@ -1,1 +1,203 @@
-!function(e){var t={};function n(o){if(t[o])return t[o].exports;var r=t[o]={i:o,l:!1,exports:{}};return e[o].call(r.exports,r,r.exports,n),r.l=!0,r.exports}n.m=e,n.c=t,n.d=function(e,t,o){n.o(e,t)||Object.defineProperty(e,t,{enumerable:!0,get:o})},n.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},n.t=function(e,t){if(1&t&&(e=n(e)),8&t)return e;if(4&t&&"object"==typeof e&&e&&e.__esModule)return e;var o=Object.create(null);if(n.r(o),Object.defineProperty(o,"default",{enumerable:!0,value:e}),2&t&&"string"!=typeof e)for(var r in e)n.d(o,r,function(t){return e[t]}.bind(null,r));return o},n.n=function(e){var t=e&&e.__esModule?function(){return e.default}:function(){return e};return n.d(t,"a",t),t},n.o=function(e,t){return Object.prototype.hasOwnProperty.call(e,t)},n.p="",n(n.s=7)}([function(e,t){e.exports=function(e,...t){e(...t).then(e=>{try{e=JSON.stringify(e),console.info(e)}catch(e){console.error(e)}}).catch(e=>{console.error(e)})}},function(e,t){e.exports=function(){const[e,t]=["%1$s","%2$s"].map(e=>JSON.parse(e));return[e,t]}},function(e,t,n){(function(t){n(4)(),t.Option=t.window.Option;const{Formio:o}=n(5),r=document.body;e.exports=function(e,t){return new Promise((n,c)=>{o.createForm(r,e).then(e=>{e.once("error",e=>{c(e)}),e.once("submit",e=>{n(e)}),e.once("change",()=>{e.submit().then(()=>{}).catch(()=>{})}),e.submission=t}).catch(e=>{c(e)})})}}).call(this,n(3))},function(e,t){var n;n=function(){return this}();try{n=n||new Function("return this")()}catch(e){"object"==typeof window&&(n=window)}e.exports=n},function(e,t){e.exports=require("jsdom-global")},function(e,t){e.exports=require("formiojs")},function(e,t){const n=["datagrid"];function o(e,t){if(Array.isArray(e))e.forEach(e=>o(e,t));else if(null!==e&&"object"==typeof e)if(e.tree&&Array.isArray(e.components)){const r=function(e,t,o){return n.includes(e)?(o[t]=[{}],o[t][0]):(o[t]={},o[t])}(e.type,e.key,t);Array.isArray(r)?(r.push({}),e.components.forEach((e,t)=>{o(e,r[0])})):e.components.forEach(e=>o(e,r))}else if(e.input)!function(e,t){Array.isArray(t)?t.push({[e]:!0}):"object"==typeof t&&(t[e]=!0)}(e.key,t);else for(let n in e)"object"==typeof e[n]&&o(e[n],t)}function r(e,t){if("object"==typeof e&&null!==e&&"object"==typeof t&&null!==t)if(Array.isArray(e))Array.isArray(t)||e.splice(0,e.length),function(e){const t=e.filter(e=>"object"==typeof e&&null!==e);e.splice(0,e.length,...t)}(e),function(e,t){const n=e.filter(e=>{const n=Object.keys(e);return t.some(e=>{return t=Object.keys(e),n.every(e=>t.includes(e));var t})});n.forEach((e,n)=>{"object"==typeof e&&r(e,t[n])}),e.splice(0,e.length,...n)}(e,t);else for(let n in e)n in t||delete e[n],null!==t[n]&&"object"==typeof t[n]&&("object"!=typeof e[n]||null===e[n]?delete e[n]:r(e[n],t[n]))}e.exports=function(e,t={}){const n=t.data,c={};return o(e,c),r(n,c),{...t,data:n}}},function(e,t,n){const o=n(2),r=n(6),c=n(0),i=n(1);let[u,f]=i();f=r(u,f),c(o,u,f)}]);
+'use strict';
+
+function _interopDefault(ex) { return (ex && (typeof ex === 'object') && 'default' in ex) ? ex['default'] : ex; }
+
+
+var jsdomGlobal = _interopDefault(require('jsdom-global'));
+var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
+var fs = _interopDefault(require('fs'));
+var path = _interopDefault(require('path'));
+jsdomGlobal();
+commonjsGlobal.Option = commonjsGlobal.window.Option;
+
+var formiojs = _interopDefault(require('formiojs'));
+
+
+function commonjsRequire() {
+    throw new Error('Dynamic requires are not currently supported by @rollup/plugin-commonjs');
+}
+
+var takeFromStdin = function takeFromStdin() {
+    const [form, submission, pathToCustomComponentsFolder] = ["%1$s", "%2$s", '%3$s'];
+    return [JSON.parse(form), JSON.parse(submission), pathToCustomComponentsFolder];
+};
+
+const { Formio } = formiojs;
+
+
+
+
+function registerComponent(componentDetails = {}) {
+    const { name, path } = componentDetails;
+    const customComponent = require(path);
+    Formio.registerComponent(name, customComponent);
+}
+
+var registerCustomComponents = function registerCustomComponents() {
+    const [, , pathToCustomComponentsFolder] = takeFromStdin();
+
+    if (!pathToCustomComponentsFolder) return;
+
+    const files = fs.readdirSync(pathToCustomComponentsFolder);
+    const componentsDetails = files
+        .filter(paths => path.extname(paths) === '.js')
+        .map(fileBasename => {
+            const name = fileBasename.slice(0, -path.extname(fileBasename).length);
+            return {
+                name,
+                path: path.resolve(pathToCustomComponentsFolder, fileBasename)
+            }
+        });
+
+    componentsDetails.forEach(registerComponent);
+};
+
+const { Formio: Formio$1 } = formiojs;
+
+registerCustomComponents();
+const body = document.body;
+
+var validateSubmission = function validateSubmission(form, submission) {
+    return new Promise((resolve, reject) => {
+        Formio$1.createForm(body, form)
+            .then(instance => {
+                instance.once('error', error => {
+                    reject(error);
+                });
+                instance.once('submit', submit => {
+                    resolve(submit);
+                });
+                instance.once('change', () => {
+                    instance.submit()
+                        .then(() => {
+
+                        }).catch(() => {
+
+                        });
+                });
+                instance.submission = submission;
+            })
+            .catch(err => {
+                reject(err);
+            });
+    })
+};
+
+const arrayComponents = ['datagrid'];
+
+
+function saveToResult(key, result) {
+    if (Array.isArray(result)) {
+        result.push({ [key]: true });
+    } else if (typeof result === 'object') {
+        result[key] = true;
+    }
+}
+
+function extendResult(componentType, key, result) {
+    if (arrayComponents.includes(componentType)) {
+        result[key] = [{}];
+        return result[key][0]
+    }
+    result[key] = {};
+    return result[key];
+}
+
+function makeSchema(component, result) {
+    if (Array.isArray(component)) {
+        component.forEach(subComponent => makeSchema(subComponent, result));
+    } else if (component !== null && typeof component === 'object') {
+        if (component.tree && Array.isArray(component.components)) {
+            const link = extendResult(component.type, component.key, result);
+            if (Array.isArray(link)) {
+                link.push({});
+                component.components.forEach((component, i) => {
+                    makeSchema(component, link[0]);
+                });
+            } else {
+                component.components.forEach(component => makeSchema(component, link));
+            }
+        } else if (component.input) {
+            saveToResult(component.key, result);
+        } else {
+            for (let key in component) {
+                if (typeof component[key] === 'object') {
+                    makeSchema(component[key], result);
+                }
+            }
+        }
+    }
+}
+
+function ArrayHasArray(parentArray, childArray) {
+    return childArray.every(element => parentArray.includes(element));
+}
+
+function clearArrayOfPrimitiveTypes(array) {
+    const filteredArray = array.filter(element => typeof element === 'object' && element !== null);
+    array.splice(0, array.length, ...filteredArray);
+}
+
+function removeUnmatchedObjects(array, schema) {
+    const filteredArray = array.filter(element => {
+        const keys = Object.keys(element);
+        return schema.some(el => ArrayHasArray(Object.keys(el), keys));
+    });
+    filteredArray.forEach((element, i) => {
+        if (typeof element === "object") {
+            stripUnknown(element, schema[i]);
+        }
+    });
+    array.splice(0, array.length, ...filteredArray);
+}
+
+function stripUnknown(data, schema) {
+    if (typeof data !== 'object' || data === null || typeof schema !== 'object' || schema === null) return;
+    if (Array.isArray(data)) {
+        if (!Array.isArray(schema)) {
+            data.splice(0, data.length);
+        }
+        clearArrayOfPrimitiveTypes(data);
+        removeUnmatchedObjects(data, schema);
+    } else {
+        for (let key in data) {
+            if (!(key in schema)) {
+                delete data[key];
+            }
+            if (schema[key] !== null && typeof schema[key] === 'object') {
+                if (typeof data[key] !== 'object' || data[key] === null) {
+                    delete data[key];
+                } else {
+                    stripUnknown(data[key], schema[key]);
+                }
+            }
+        }
+    }
+}
+
+var cleanUpSubmission = function cleanUpSubmissionData(form, submission = {}) {
+    const data = submission.data;
+    const result = {};
+    makeSchema(form, result);
+    stripUnknown(data, result);
+    return { ...submission, data: data };
+};
+
+var putToStdout = function putToStdout(fn, ...args) {
+    fn(...args)
+        .then(result => {
+            try {
+                result = JSON.stringify(result);
+                console.info(result);
+            } catch (err) {
+                console.error(err);
+            }
+        })
+        .catch(err => {
+            console.error(err);
+        });
+};
+
+let [form, submission] = takeFromStdin();
+submission = cleanUpSubmission(form, submission);
+putToStdout(validateSubmission, form, submission);
