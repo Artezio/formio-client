@@ -27,123 +27,123 @@ public class ResourceLoaderTest {
     private DeploymentResourceLoader deploymentResourceLoader;
     @InjectMocks
     private ResourceLoader resourceLoader = new ResourceLoader();
-    
+
     @Test
     public void testGetProtocol_NoProtocolDefined() {
-	String actual = resourceLoader.getProtocol("noProtocolResource");
-	
-	assertEquals(ResourceLoader.APP_PROTOCOL, actual);
+        String actual = resourceLoader.getProtocol("noProtocolResource");
+
+        assertEquals(ResourceLoader.APP_PROTOCOL, actual);
     }
 
     @Test
     public void testGetProtocol_AppProtocol() {
-	String actual = resourceLoader.getProtocol("embedded:app:aResource");
-	
-	assertEquals(ResourceLoader.APP_PROTOCOL, actual);
+        String actual = resourceLoader.getProtocol("embedded:app:aResource");
+
+        assertEquals(ResourceLoader.APP_PROTOCOL, actual);
     }
 
     @Test
     public void testGetProtocol_DeploymentProtocol() {
-	String actual = resourceLoader.getProtocol("embedded:deployment:aResource");
-	
-	assertEquals(ResourceLoader.DEPLOYMENT_PROTOCOL, actual);
+        String actual = resourceLoader.getProtocol("embedded:deployment:aResource");
+
+        assertEquals(ResourceLoader.DEPLOYMENT_PROTOCOL, actual);
     }
-    
+
     @Test
     public void getFormPath_WithProtocolInKey() {
-	String actual = resourceLoader.getFormPath("embedded:deployment:aResource");
-	
-	assertEquals("aResource", actual);
+        String actual = resourceLoader.getFormPath("embedded:deployment:aResource");
+
+        assertEquals("aResource", actual);
     }
 
     @Test
     public void getFormPath_WithoutProtocolInKey() {
-	String actual = resourceLoader.getFormPath("aResource");
-	
-	assertEquals("aResource", actual);
+        String actual = resourceLoader.getFormPath("aResource");
+
+        assertEquals("aResource", actual);
     }
-    
+
     @Test
     public void testListResources_App() throws MalformedURLException {
-	String resourcesPath = "forms";
-	List<String> expecteds = Arrays.asList("a", "b");
-	when(appResourceloader.listResources(null, resourcesPath)).thenReturn(expecteds);
-	
-	List<String> actuals = resourceLoader.listResources(null, "embedded:app:", resourcesPath);
-	
-	verify(appResourceloader).listResources(any(), any());
-	assertSame(expecteds, actuals);
+        String resourcesPath = "forms";
+        List<String> expecteds = Arrays.asList("a", "b");
+        when(appResourceloader.listResources(null, resourcesPath)).thenReturn(expecteds);
+
+        List<String> actuals = resourceLoader.listResources(null, "embedded:app:", resourcesPath);
+
+        verify(appResourceloader).listResources(any(), any());
+        assertSame(expecteds, actuals);
     }
-    
+
     @Test
     public void testListResources_Deployment() {
-	String resourcesPath = "forms";
-	List<String> expecteds = Arrays.asList("a", "b");
-	when(deploymentResourceLoader.listResources(null, resourcesPath)).thenReturn(expecteds);
-	
-	List<String> actuals = resourceLoader.listResources(null, "embedded:deployment:", resourcesPath);
-	
-	verify(deploymentResourceLoader).listResources(any(), any());
-	assertSame(expecteds, actuals);
+        String resourcesPath = "forms";
+        List<String> expecteds = Arrays.asList("a", "b");
+        when(deploymentResourceLoader.listResources(null, resourcesPath)).thenReturn(expecteds);
+
+        List<String> actuals = resourceLoader.listResources(null, "embedded:deployment:", resourcesPath);
+
+        verify(deploymentResourceLoader).listResources(any(), any());
+        assertSame(expecteds, actuals);
     }
-    
+
     @Test
     public void testGetResource_App() {
-	InputStream expected = new ByteArrayInputStream("a".getBytes());
-	when(appResourceloader.getResource(any(), any())).thenReturn(expected);
-	
-	InputStream actual = resourceLoader.getResource(null, "embedded:app:test.json");
+        InputStream expected = new ByteArrayInputStream("a".getBytes());
+        when(appResourceloader.getResource(any(), any())).thenReturn(expected);
 
-	verify(appResourceloader).getResource(any(), any());
-	assertSame(expected, actual);
+        InputStream actual = resourceLoader.getResource(null, "embedded:app:test.json");
+
+        verify(appResourceloader).getResource(any(), any());
+        assertSame(expected, actual);
 
     }
 
     @Test
     public void testGetResource_Deployment() {
-	InputStream expected = new ByteArrayInputStream("a".getBytes());
-	when(deploymentResourceLoader.getResource(any(), any())).thenReturn(expected);
-	
-	InputStream actual = resourceLoader.getResource(null, "embedded:deployment:test.json");
+        InputStream expected = new ByteArrayInputStream("a".getBytes());
+        when(deploymentResourceLoader.getResource(any(), any())).thenReturn(expected);
 
-	verify(deploymentResourceLoader).getResource(any(), any());
-	assertSame(expected, actual);
+        InputStream actual = resourceLoader.getResource(null, "embedded:deployment:test.json");
+
+        verify(deploymentResourceLoader).getResource(any(), any());
+        assertSame(expected, actual);
 
     }
 
     @Test
     public void testGetResource_WithoutProtocol() {
-	InputStream expected = new ByteArrayInputStream("a".getBytes());
-	when(appResourceloader.getResource(any(), any())).thenReturn(expected);
-	
-	InputStream actual = resourceLoader.getResource(null, "test.json");
+        InputStream expected = new ByteArrayInputStream("a".getBytes());
+        when(appResourceloader.getResource(any(), any())).thenReturn(expected);
 
-	verify(appResourceloader).getResource(any(), any());
-	assertSame(expected, actual);
+        InputStream actual = resourceLoader.getResource(null, "test.json");
+
+        verify(appResourceloader).getResource(any(), any());
+        assertSame(expected, actual);
 
     }
 
     @Test
     public void testGetResource_WithProtocolOverrided() {
-	InputStream expected = new ByteArrayInputStream("a".getBytes());
-	when(appResourceloader.getResource(any(), any())).thenReturn(expected);
-	
-	InputStream actual = resourceLoader.getResource(null, "embedded:app:", "embedded:deployment:test.json");
+        InputStream expected = new ByteArrayInputStream("a".getBytes());
+        when(appResourceloader.getResource(any(), any())).thenReturn(expected);
 
-	verify(appResourceloader).getResource(any(), any());
-	assertSame(expected, actual);
+        InputStream actual = resourceLoader.getResource(null, "embedded:app:", "embedded:deployment:test.json");
+
+        verify(appResourceloader).getResource(any(), any());
+        assertSame(expected, actual);
 
     }
 
     @Test
     public void testGetResource_WithProtocolOverridedForNonProtocolResource() {
-	InputStream expected = new ByteArrayInputStream("a".getBytes());
-	when(deploymentResourceLoader.getResource(any(), any())).thenReturn(expected);
-	
-	InputStream actual = resourceLoader.getResource(null, "embedded:deployment:", "test.json");
+        InputStream expected = new ByteArrayInputStream("a".getBytes());
+        when(deploymentResourceLoader.getResource(any(), any())).thenReturn(expected);
 
-	verify(deploymentResourceLoader).getResource(any(), any());
-	assertSame(expected, actual);
+        InputStream actual = resourceLoader.getResource(null, "embedded:deployment:", "test.json");
+
+        verify(deploymentResourceLoader).getResource(any(), any());
+        assertSame(expected, actual);
 
     }
 

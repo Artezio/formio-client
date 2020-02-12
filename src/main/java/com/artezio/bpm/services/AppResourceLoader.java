@@ -22,25 +22,25 @@ public class AppResourceLoader implements AbstractResourceLoader {
 
     @Override
     public InputStream getResource(String deploymentId, String resourceKey) {
-	return servletContext.getResourceAsStream(resourceKey);
+        return servletContext.getResourceAsStream(resourceKey);
     }
 
     @Override
     public List<String> listResources(String deploymentId, String initialPath) {
-	try {
-	    URL url = servletContext.getResource(initialPath);
-	    File resource = new File(url.getPath());
-	    return Arrays.stream(resource.listFiles())
-		    .flatMap(file -> {
-			String resourceName = initialPath + "/" + file.getName();
-			return file.isDirectory()
-				? listResources(deploymentId, resourceName).stream()
-				: Arrays.asList(resourceName).stream();
-		    })
-		    .collect(Collectors.toList());
-	} catch (MalformedURLException e) {
-	    throw new RuntimeException(e);
-	}
+        try {
+            URL url = servletContext.getResource(initialPath);
+            File resource = new File(url.getPath());
+            return Arrays.stream(resource.listFiles())
+                    .flatMap(file -> {
+                        String resourceName = initialPath + "/" + file.getName();
+                        return file.isDirectory()
+                                ? listResources(deploymentId, resourceName).stream()
+                                : Arrays.asList(resourceName).stream();
+                    })
+                    .collect(Collectors.toList());
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
 }

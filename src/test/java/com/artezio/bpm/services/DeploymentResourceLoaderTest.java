@@ -20,31 +20,31 @@ public class DeploymentResourceLoaderTest {
     public ProcessEngineRule processEngineRule = new ProcessEngineRule();
 
     private String getLatestDeploymentId() {
-	return processEngineRule.getRepositoryService()
-		.createDeploymentQuery()
-		.list()
-		.stream()
-		.sorted((d1, d2) -> d1.getDeploymentTime().compareTo(d2.getDeploymentTime()))
-		.findFirst().get().getId();
+        return processEngineRule.getRepositoryService()
+                .createDeploymentQuery()
+                .list()
+                .stream()
+                .sorted((d1, d2) -> d1.getDeploymentTime().compareTo(d2.getDeploymentTime()))
+                .findFirst().get().getId();
     }
 
     @Test
     @Deployment(resources = {"forms/formWithState.json"})
     public void testGetResource() throws IOException {
-	InputStream actual = loader.getResource(getLatestDeploymentId(), "forms/formWithState.json");
-	
-	assertNotNull(actual);
-	assertTrue(actual.available() > 0);
+        InputStream actual = loader.getResource(getLatestDeploymentId(), "forms/formWithState.json");
+
+        assertNotNull(actual);
+        assertTrue(actual.available() > 0);
     }
 
     @Test
-    @Deployment(resources = { "forms/formWithState.json", "forms/formWithSubform.json"})
+    @Deployment(resources = {"forms/formWithState.json", "forms/formWithSubform.json"})
     public void testListResources() {
-	List<String> actuals = loader.listResources(getLatestDeploymentId(), "forms");
-	
-	assertTrue(actuals.size() == 2);
-	assertTrue(actuals.contains("forms/formWithState.json"));
-	assertTrue(actuals.contains("forms/formWithSubform.json"));
+        List<String> actuals = loader.listResources(getLatestDeploymentId(), "forms");
+
+        assertTrue(actuals.size() == 2);
+        assertTrue(actuals.contains("forms/formWithState.json"));
+        assertTrue(actuals.contains("forms/formWithSubform.json"));
     }
 
 }

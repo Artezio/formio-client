@@ -19,11 +19,11 @@ public class DeploymentResourceLoader implements AbstractResourceLoader {
 
     @Override
     public InputStream getResource(String deploymentId, String resourceKey) {
-	return getRepositoryService().getResourceAsStream(deploymentId, resourceKey);
+        return getRepositoryService().getResourceAsStream(deploymentId, resourceKey);
     }
 
     private RepositoryService getRepositoryService() {
-	return getProcessEngine().getRepositoryService();
+        return getProcessEngine().getRepositoryService();
     }
 
     /**
@@ -32,18 +32,18 @@ public class DeploymentResourceLoader implements AbstractResourceLoader {
      * Changes are: added engine name
      */
     private ProcessEngine getProcessEngine() {
-	String processEngineName = Optional.ofNullable(PROCESS_ENGINE_NAME).orElse(ProcessEngines.NAME_DEFAULT);
-	ProcessEngine defaultProcessEngine = BpmPlatform.getProcessEngineService().getProcessEngine(processEngineName);
-	return defaultProcessEngine != null
-		? defaultProcessEngine
-		: ProcessEngines.getProcessEngine(processEngineName);
+        String processEngineName = Optional.ofNullable(PROCESS_ENGINE_NAME).orElse(ProcessEngines.NAME_DEFAULT);
+        ProcessEngine defaultProcessEngine = BpmPlatform.getProcessEngineService().getProcessEngine(processEngineName);
+        return defaultProcessEngine != null
+                ? defaultProcessEngine
+                : ProcessEngines.getProcessEngine(processEngineName);
     }
 
     @Override
     public List<String> listResources(String deploymentId, String initialPath) {
-	return getRepositoryService().getDeploymentResourceNames(deploymentId).stream()
-		.filter(resourceName -> resourceName.startsWith(initialPath))
-		.collect(Collectors.toList());
+        return getRepositoryService().getDeploymentResourceNames(deploymentId).stream()
+                .filter(resourceName -> resourceName.startsWith(initialPath))
+                .collect(Collectors.toList());
     }
 
 }

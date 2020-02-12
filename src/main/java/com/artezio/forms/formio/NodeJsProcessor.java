@@ -31,14 +31,20 @@ public class NodeJsProcessor {
 
     private StandardStreamsData readStandardStreams(Process process) throws InterruptedException, ExecutionException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        Future<byte[]> stdoutData = executor.submit(() -> {try (InputStream stdout = process.getInputStream()) {return IOUtils.toByteArray(stdout);}});
-        Future<byte[]> stderrData = executor.submit(() -> {try (InputStream stderr = process.getErrorStream()) {return IOUtils.toByteArray(stderr);}});
+        Future<byte[]> stdoutData = executor.submit(() -> toByteArray(process.getInputStream()));
+        Future<byte[]> stderrData = executor.submit(() -> toByteArray(process.getErrorStream()));
         executor.shutdown();
         boolean taskExecutionCompleted = executor.awaitTermination(30, TimeUnit.SECONDS);
         if (!taskExecutionCompleted) {
             throw new RuntimeException("Reading from the process standard streams has timed out.");
         }
         return new StandardStreamsData(stdoutData.get(), stderrData.get());
+    }
+
+    private byte[] toByteArray(InputStream inputStream) throws IOException {
+        byte[] bytes = IOUtils.toByteArray(inputStream);
+        inputStream.close();
+        return bytes;
     }
 
     private String loadScript(String scriptName) {

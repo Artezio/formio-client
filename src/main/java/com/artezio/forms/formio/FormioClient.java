@@ -43,6 +43,7 @@ public class FormioClient implements FormClient {
     private static final String CUSTOM_COMPONENTS_FOLDER = "custom-components";
     private final static Map<String, String> CUSTOM_COMPONENTS_DIR_CACHE = new ConcurrentHashMap<>();
     private final static Path FORMIO_TEMP_DIR;
+
     static {
         try {
             Path path = Paths.get(System.getProperty("java.io.tmpdir"), ".formio");
@@ -53,6 +54,7 @@ public class FormioClient implements FormClient {
             throw new RuntimeException("Error while creating a directory", e);
         }
     }
+
     private final static Map<String, JsonNode> FORM_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
@@ -102,7 +104,7 @@ public class FormioClient implements FormClient {
             String formDefinition = getForm(deploymentId, formKey).toString();
             String customComponentsDir = getCustomComponentsDir(deploymentId, formKey);
             taskVariables = convertFilesInData(formDefinition, taskVariables, fileAttributeConverter::toFormioFile);
-            ObjectNode formVariables = (ObjectNode)getFormVariables(deploymentId, formKey, submittedVariables, taskVariables);
+            ObjectNode formVariables = (ObjectNode) getFormVariables(deploymentId, formKey, submittedVariables, taskVariables);
             String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(formVariables));
             byte[] validationResult = nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition, submissionData, customComponentsDir);
             JsonNode cleanData = getDataFromScriptExecutionResult(validationResult);
@@ -130,7 +132,7 @@ public class FormioClient implements FormClient {
     }
 
     private JsonNode loadForm(String deploymentId, String formKey) {
-	String storageProtocol = resourceLoader.getProtocol(formKey);
+        String storageProtocol = resourceLoader.getProtocol(formKey);
         try (InputStream formResource = resourceLoader.getResource(deploymentId, formKey)) {
             JsonNode form = JSON_MAPPER.readTree(formResource);
             return expandSubforms(form, deploymentId, storageProtocol);
@@ -411,9 +413,9 @@ public class FormioClient implements FormClient {
                 .filter(Objects::nonNull)
                 .collect(
                         JSON_MAPPER::createObjectNode,
-                        (resultData, cleanDataEntry) ->  resultData.set(cleanDataEntry.getKey(), cleanDataEntry.getValue()),
+                        (resultData, cleanDataEntry) -> resultData.set(cleanDataEntry.getKey(), cleanDataEntry.getValue()),
                         ObjectNode::setAll
-                        );
+                );
     }
 
     private Map.Entry<String, ? extends JsonNode> getFormVariable(JsonNode component, JsonNode submittedVariables,
@@ -533,7 +535,7 @@ public class FormioClient implements FormClient {
     }
 
     protected String getCustomComponentsDir(String deploymentId, String formKey) {
-	String storageProtocol = resourceLoader.getProtocol(formKey);
+        String storageProtocol = resourceLoader.getProtocol(formKey);
         String cacheKey = String.format("%s-%s", storageProtocol, deploymentId);
         return CUSTOM_COMPONENTS_DIR_CACHE.computeIfAbsent(cacheKey, key -> {
             try {
@@ -580,14 +582,14 @@ public class FormioClient implements FormClient {
         return inputName.replaceAll("[^a-zA-Z0-9-_\\.]", "-");
     }
 
-	@Override
-	public List<String> listCustomComponents(String deploymentId, String formPath) {
-		return Collections.emptyList();
-	}
+    @Override
+    public List<String> listCustomComponents(String deploymentId, String formPath) {
+        return Collections.emptyList();
+    }
 
-	@Override
-	public InputStream getCustomComponent(String deploymentId, String componentName) {
-		return new ByteArrayInputStream("Hello world!".getBytes());
-	}
+    @Override
+    public InputStream getCustomComponent(String deploymentId, String componentName) {
+        return new ByteArrayInputStream("Hello world!".getBytes());
+    }
 
 }
