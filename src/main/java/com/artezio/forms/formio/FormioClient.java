@@ -1,5 +1,41 @@
 package com.artezio.forms.formio;
 
+import static java.lang.Boolean.TRUE;
+import static java.util.Arrays.asList;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.Spliterator;
+import java.util.Spliterators;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
+
+import javax.inject.Inject;
+import javax.inject.Named;
+
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
+
 import com.artezio.bpm.services.ResourceLoader;
 import com.artezio.forms.FormClient;
 import com.artezio.forms.formio.exceptions.FormValidationException;
@@ -9,33 +45,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.jayway.jsonpath.*;
+import com.jayway.jsonpath.Configuration;
+import com.jayway.jsonpath.Criteria;
+import com.jayway.jsonpath.Filter;
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.ParseContext;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
+
 import net.minidev.json.JSONArray;
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.StringUtils;
-
-import javax.inject.Inject;
-import javax.inject.Named;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.Map.Entry;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import static java.lang.Boolean.TRUE;
-import static java.util.AbstractMap.SimpleEntry;
-import static java.util.Arrays.asList;
 
 @Named
 public class FormioClient implements FormClient {
@@ -43,6 +60,7 @@ public class FormioClient implements FormClient {
     private static final String CUSTOM_COMPONENTS_FOLDER = "custom-components";
     private final static Map<String, String> CUSTOM_COMPONENTS_DIR_CACHE = new ConcurrentHashMap<>();
     private final static Path FORMIO_TEMP_DIR;
+    private final static Pattern COMPONENT_NAME_PATTERN = Pattern.compile("(?:\\w*:)?.*/(.*)(?:\\.[^\\.]*)$");
 
     static {
         try {
@@ -583,13 +601,23 @@ public class FormioClient implements FormClient {
     }
 
     @Override
-    public List<String> listCustomComponents(String deploymentId, String formPath) {
-        return Collections.emptyList();
+    public Map<String, String> listAdditionalResources(String deploymentId, String formKey) {
+	String protocol = resourceLoader.getProtocol(formKey);
+        return resourceLoader.listResources(deploymentId, protocol, CUSTOM_COMPONENTS_FOLDER)
+        	.stream()
+        	.collect(Collectors.toMap(r -> getComponentName(r), r -> protocol + r));
+    }
+
+    private String getComponentName(String resourceName) {
+	Matcher matcher = COMPONENT_NAME_PATTERN.matcher(resourceName);
+	return matcher.matches()
+		? matcher.group(1)
+		: resourceName;
     }
 
     @Override
-    public InputStream getCustomComponent(String deploymentId, String componentName) {
-        return new ByteArrayInputStream("Hello world!".getBytes());
+    public InputStream getAdditionalResource(String deploymentId, String resourcePath) {
+        return resourceLoader.getResource(deploymentId, resourcePath);
     }
 
 }
