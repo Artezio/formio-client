@@ -601,7 +601,7 @@ public class FormioClient implements FormClient {
     }
 
     @Override
-    public Map<String, String> listAdditionalResources(String deploymentId, String formKey) {
+    public Map<String, String> listResources(String deploymentId, String formKey) {
 	String protocol = resourceLoader.getProtocol(formKey);
         return resourceLoader.listResources(deploymentId, protocol, CUSTOM_COMPONENTS_FOLDER)
         	.stream()
@@ -616,7 +616,7 @@ public class FormioClient implements FormClient {
     }
 
     @Override
-    public InputStream getAdditionalResource(String deploymentId, String resourcePath) {
+    public InputStream getResource(String deploymentId, String resourcePath) {
         return resourceLoader.getResource(deploymentId, resourcePath);
     }
 
