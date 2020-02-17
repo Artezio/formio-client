@@ -29,18 +29,18 @@ public class AppResourceLoaderTest {
 
     @Test
     public void testListClassloaderResources() throws MalformedURLException, URISyntaxException {
-        String resourcesPath = "forms";
+        String resourcesPath = "custom-components";
         when(servletContext.getResource(any()))
-                .thenReturn(AppResourceLoaderTest.class.getClassLoader().getResource(resourcesPath).toURI().toURL());
+                .thenReturn(Thread.currentThread().getContextClassLoader().getResource(resourcesPath));
 
         List<String> actuals = loader.listResources(null, resourcesPath);
 
-        assertTrue(actuals.contains("forms/test.json"));
+        assertTrue(actuals.contains("custom-components/component.js"));
     }
     
     @Test
     public void testGetResource() throws IOException {
-        String resourcesKey = "forms/formWithState.json";
+        String resourcesKey = "custom-components/component.js";
         when(servletContext.getResourceAsStream(resourcesKey))
                 .thenReturn(Thread.currentThread().getContextClassLoader().getResourceAsStream(resourcesKey));
 
