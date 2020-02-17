@@ -31,17 +31,13 @@ public class AppResourceLoaderTest {
     public void testListClassloaderResources() throws MalformedURLException, URISyntaxException {
         String resourcesPath = "forms";
         when(servletContext.getResource(any()))
-                .thenReturn(Thread.currentThread().getContextClassLoader().getResource(resourcesPath).toURI().toURL());
+                .thenReturn(AppResourceLoaderTest.class.getClassLoader().getResource(resourcesPath).toURI().toURL());
 
         List<String> actuals = loader.listResources(null, resourcesPath);
 
         assertTrue(actuals.contains("forms/test.json"));
     }
     
-    public static void main(String[] args) throws URISyntaxException, MalformedURLException {
-        System.out.println(Thread.currentThread().getContextClassLoader().getResource("forms").toURI().toURL());
-    }
-
     @Test
     public void testGetResource() throws IOException {
         String resourcesKey = "forms/formWithState.json";
