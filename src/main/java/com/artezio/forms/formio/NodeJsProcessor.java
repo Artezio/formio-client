@@ -69,14 +69,15 @@ public class NodeJsProcessor {
     }
 
     private String createCommand(String script, String formDefinition, String submissionData, String customComponentsDir) {
-        formDefinition = escapeDoubleQuotes(formDefinition);
-        submissionData = escapeDoubleQuotes(submissionData);
-        customComponentsDir = escapeDoubleQuotes(customComponentsDir);
+        formDefinition = escapeUnsafeSymbols(formDefinition);
+        submissionData = escapeUnsafeSymbols(submissionData);
         return String.format(script, formDefinition, submissionData, customComponentsDir);
     }
 
-    private String escapeDoubleQuotes(String string) {
-        return string.replaceAll("\"", "\\\\\"");
+    private String escapeUnsafeSymbols(String string) {
+        return string.replaceAll("\"", "\\\\\"")
+                .replaceAll("'", "\\\\'")
+                .replaceAll("\\\\r|\\\\n", "");
     }
 
     private void checkErrors(byte[] stderrContent) {
