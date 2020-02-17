@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -13,7 +14,8 @@ public class ResourceLoader {
 
     public final static String APP_PROTOCOL = "embedded:app:";
     public final static String DEPLOYMENT_PROTOCOL = "embedded:deployment:";
-    private final static Pattern RESOURCE_KEY_PATTERN = Pattern.compile("(embedded:\\w+:)?(.+)");
+    private final static Pattern RESOURCE_KEY_PATTERN = Pattern.compile("(?:embedded:\\w*:)?(.+)");
+    private final static Pattern PROTOCOL_PATTERN = Pattern.compile("(embedded:\\w*:)?.*");
 
     @Inject
     private AppResourceLoader appResourceLoader;
@@ -22,7 +24,7 @@ public class ResourceLoader {
 
     @SuppressWarnings("serial")
     public String getProtocol(String resourceKey) {
-        Matcher matcher = RESOURCE_KEY_PATTERN.matcher(resourceKey);
+        Matcher matcher = PROTOCOL_PATTERN.matcher(resourceKey);
         return matcher.matches() && DEPLOYMENT_PROTOCOL.equals(matcher.group(1))
                 ? DEPLOYMENT_PROTOCOL
                 : APP_PROTOCOL;
@@ -42,12 +44,15 @@ public class ResourceLoader {
     protected String getFormPath(String resourceKey) {
         Matcher matcher = RESOURCE_KEY_PATTERN.matcher(resourceKey);
         matcher.matches();
-        return matcher.group(2);
+        return matcher.group(1);
     }
 
     public List<String> listResources(String deploymentId, String protocol, String initialPath) {
         return getLoader(protocol)
-                .listResources(deploymentId, initialPath);
+                .listResources(deploymentId, initialPath)
+                .stream()
+                .map(resourceName -> protocol + resourceName)
+                .collect(Collectors.toList());
     }
 
     private AbstractResourceLoader getLoader(String protocol) {

@@ -2,11 +2,12 @@ package com.artezio.bpm.services;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.util.List;
 
 import javax.servlet.ServletContext;
@@ -27,14 +28,18 @@ public class AppResourceLoaderTest {
     private ServletContext servletContext;
 
     @Test
-    public void testListClassloaderResources() throws MalformedURLException {
+    public void testListClassloaderResources() throws MalformedURLException, URISyntaxException {
         String resourcesPath = "forms";
-        when(servletContext.getResource(resourcesPath))
-                .thenReturn(Thread.currentThread().getContextClassLoader().getResource(resourcesPath));
+        when(servletContext.getResource(any()))
+                .thenReturn(Thread.currentThread().getContextClassLoader().getResource(resourcesPath).toURI().toURL());
 
         List<String> actuals = loader.listResources(null, resourcesPath);
 
         assertTrue(actuals.contains("forms/test.json"));
+    }
+    
+    public static void main(String[] args) throws URISyntaxException, MalformedURLException {
+        System.out.println(Thread.currentThread().getContextClassLoader().getResource("forms").toURI().toURL());
     }
 
     @Test
@@ -49,4 +54,17 @@ public class AppResourceLoaderTest {
         assertTrue(actual.available() > 0);
     }
 
+    @Test
+    public void testListClassloaderResources_IfResourcePathNotExists() throws MalformedURLException, URISyntaxException {
+        String resourcesPath = "non-existent-path";
+        when(servletContext.getResource(any()))
+                .thenReturn(null);
+
+        List<String> actuals = loader.listResources(null, resourcesPath);
+
+        assertTrue(actuals.isEmpty());
+    }
+    
+    
+    
 }

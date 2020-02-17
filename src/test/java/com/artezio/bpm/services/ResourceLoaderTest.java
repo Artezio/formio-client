@@ -66,25 +66,27 @@ public class ResourceLoaderTest {
     @Test
     public void testListResources_App() throws MalformedURLException {
         String resourcesPath = "forms";
-        List<String> expecteds = Arrays.asList("a", "b");
-        when(appResourceloader.listResources(null, resourcesPath)).thenReturn(expecteds);
+        List<String> mackResources = Arrays.asList("a", "b");
+        List<String> expecteds = Arrays.asList("embedded:app:a", "embedded:app:b");
+        when(appResourceloader.listResources(any(), any())).thenReturn(mackResources);
 
         List<String> actuals = resourceLoader.listResources(null, "embedded:app:", resourcesPath);
 
         verify(appResourceloader).listResources(any(), any());
-        assertSame(expecteds, actuals);
+        assertEquals(expecteds, actuals);
     }
 
     @Test
     public void testListResources_Deployment() {
         String resourcesPath = "forms";
-        List<String> expecteds = Arrays.asList("a", "b");
-        when(deploymentResourceLoader.listResources(null, resourcesPath)).thenReturn(expecteds);
+        List<String> mockResources = Arrays.asList("a", "b");
+        List<String> expecteds = Arrays.asList("embedded:deployment:a", "embedded:deployment:b");
+        when(deploymentResourceLoader.listResources(any(), any())).thenReturn(mockResources);
 
         List<String> actuals = resourceLoader.listResources(null, "embedded:deployment:", resourcesPath);
 
         verify(deploymentResourceLoader).listResources(any(), any());
-        assertSame(expecteds, actuals);
+        assertEquals(expecteds, actuals);
     }
 
     @Test
