@@ -38,6 +38,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.artezio.bpm.services.ResourceLoader;
 import com.artezio.forms.FormClient;
+import com.artezio.forms.formio.exceptions.FormNotFoundException;
 import com.artezio.forms.formio.exceptions.FormValidationException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -152,6 +153,7 @@ public class FormioClient implements FormClient {
     private JsonNode loadForm(String deploymentId, String formKey) {
         String storageProtocol = resourceLoader.getProtocol(formKey);
         try (InputStream formResource = resourceLoader.getResource(deploymentId, formKey)) {
+            if (formResource == null) throw new FormNotFoundException(formKey);
             JsonNode form = JSON_MAPPER.readTree(formResource);
             return expandSubforms(form, deploymentId, storageProtocol);
         } catch (IOException e) {
@@ -605,7 +607,7 @@ public class FormioClient implements FormClient {
 	String protocol = resourceLoader.getProtocol(formKey);
         return resourceLoader.listResources(deploymentId, protocol, CUSTOM_COMPONENTS_FOLDER)
         	.stream()
-        	.collect(Collectors.toMap(r -> getComponentName(r), r -> protocol + r));
+        	.collect(Collectors.toMap(r -> getComponentName(r), r -> r));
     }
 
     private String getComponentName(String resourceName) {

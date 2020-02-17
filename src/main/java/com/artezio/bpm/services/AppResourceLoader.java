@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,7 +29,9 @@ public class AppResourceLoader implements AbstractResourceLoader {
     @Override
     public List<String> listResources(String deploymentId, String initialPath) {
         try {
-            URL url = servletContext.getResource(initialPath);
+            String resourcePath = (initialPath.startsWith("/") ?  initialPath : "/" + initialPath);
+            URL url = servletContext.getResource(resourcePath);
+            if (url == null) return Collections.emptyList();
             File resource = new File(url.getPath());
             return Arrays.stream(resource.listFiles())
                     .flatMap(file -> {
