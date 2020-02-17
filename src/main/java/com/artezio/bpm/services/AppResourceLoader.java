@@ -41,7 +41,12 @@ public class AppResourceLoader implements AbstractResourceLoader {
                 e.printStackTrace();
             }
             
-            File resource = new File(url.getPath());
+            File resource;
+            try {
+                resource = new File(url.toURI());
+            } catch (URISyntaxException e) {
+                throw new RuntimeException(e);
+            }
             
             System.out.println("File = " + resource.getAbsolutePath());
             System.out.println("List files = " + resource.listFiles());
