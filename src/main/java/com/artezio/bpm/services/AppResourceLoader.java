@@ -33,24 +33,7 @@ public class AppResourceLoader implements AbstractResourceLoader {
             String resourcePath = (initialPath.startsWith("/") ?  initialPath : "/" + initialPath);
             URL url = servletContext.getResource(resourcePath);
             if (url == null) return Collections.emptyList();
-            
-            try {
-                System.out.println("!!!! URL = " + url.toURI().toString());
-            } catch (URISyntaxException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-            
-            File resource;
-            try {
-                resource = new File(url.toURI());
-            } catch (URISyntaxException e) {
-                throw new RuntimeException(e);
-            }
-            
-            System.out.println("File = " + resource.getAbsolutePath());
-            System.out.println("List files = " + resource.listFiles());
-            
+            File resource = new File(url.toURI());
             return Arrays.stream(resource.listFiles())
                     .flatMap(file -> {
                         String resourceName = initialPath + "/" + file.getName();
@@ -59,7 +42,7 @@ public class AppResourceLoader implements AbstractResourceLoader {
                                 : Arrays.asList(resourceName).stream();
                     })
                     .collect(Collectors.toList());
-        } catch (MalformedURLException e) {
+        } catch (MalformedURLException | URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
