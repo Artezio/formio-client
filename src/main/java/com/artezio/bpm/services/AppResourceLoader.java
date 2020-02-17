@@ -44,6 +44,7 @@ public class AppResourceLoader implements AbstractResourceLoader {
             File resource = new File(url.getPath());
             
             System.out.println("File = " + resource.getAbsolutePath());
+            System.out.println("List files = " + resource.listFiles());
             
             return Arrays.stream(resource.listFiles())
                     .flatMap(file -> {
