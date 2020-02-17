@@ -3,6 +3,7 @@ package com.artezio.bpm.services;
 import java.io.File;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,7 +33,18 @@ public class AppResourceLoader implements AbstractResourceLoader {
             String resourcePath = (initialPath.startsWith("/") ?  initialPath : "/" + initialPath);
             URL url = servletContext.getResource(resourcePath);
             if (url == null) return Collections.emptyList();
+            
+            try {
+                System.out.println("!!!! URL = " + url.toURI().toString());
+            } catch (URISyntaxException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            
             File resource = new File(url.getPath());
+            
+            System.out.println("File = " + resource.getAbsolutePath());
+            
             return Arrays.stream(resource.listFiles())
                     .flatMap(file -> {
                         String resourceName = initialPath + "/" + file.getName();
