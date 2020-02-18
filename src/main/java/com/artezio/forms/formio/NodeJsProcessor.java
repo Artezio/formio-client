@@ -11,17 +11,16 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.*;
-import java.util.function.Function;
 
 @Named
 public class NodeJsProcessor {
 
     private static final Map<String, String> SCRIPTS_CACHE = new ConcurrentHashMap<>();
 
-    public synchronized byte[] executeScript(String scriptName, String... args) throws IOException {
+    public synchronized byte[] executeScript(String scriptName, String formDefinition, String submissionData, String customComponentsDir) throws IOException {
         try {
             String script = loadScript(scriptName);
-            Process nodeJs = runNodeJs(script, args);
+            Process nodeJs = runNodeJs(script, formDefinition, submissionData, customComponentsDir);
             StandardStreamsData standardStreamsData = readStandardStreams(nodeJs);
             checkErrors(standardStreamsData.stderrData);
             return standardStreamsData.stdoutData;
@@ -32,14 +31,20 @@ public class NodeJsProcessor {
 
     private StandardStreamsData readStandardStreams(Process process) throws InterruptedException, ExecutionException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
-        Future<byte[]> stdoutData = executor.submit(() -> IOUtils.toByteArray(process.getInputStream()));
-        Future<byte[]> stderrData = executor.submit(() -> IOUtils.toByteArray(process.getErrorStream()));
+        Future<byte[]> stdoutData = executor.submit(() -> toByteArray(process.getInputStream()));
+        Future<byte[]> stderrData = executor.submit(() -> toByteArray(process.getErrorStream()));
         executor.shutdown();
         boolean taskExecutionCompleted = executor.awaitTermination(30, TimeUnit.SECONDS);
         if (!taskExecutionCompleted) {
             throw new RuntimeException("Reading from the process standard streams has timed out.");
         }
         return new StandardStreamsData(stdoutData.get(), stderrData.get());
+    }
+
+    private byte[] toByteArray(InputStream inputStream) throws IOException {
+        byte[] bytes = IOUtils.toByteArray(inputStream);
+        inputStream.close();
+        return bytes;
     }
 
     private String loadScript(String scriptName) {
@@ -52,16 +57,27 @@ public class NodeJsProcessor {
         });
     }
 
-    private Process runNodeJs(String script, String[] args) throws IOException {
+    private Process runNodeJs(String script, String formDefinition, String submissionData, String customComponentsDir) throws IOException {
         Process process = new ProcessBuilder("node").start();
-        Function<String, String> escapeDoubleQuotes = string -> string.replaceAll("\"", "\\\\\"");
-        String command = String.format(script, escapeDoubleQuotes.apply(args[0]), escapeDoubleQuotes.apply(args[1]));
+        String command = createCommand(script, formDefinition, submissionData, customComponentsDir);
         try (BufferedWriter outputStream = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()))) {
             outputStream.write(command);
             outputStream.newLine();
             outputStream.flush();
             return process;
         }
+    }
+
+    private String createCommand(String script, String formDefinition, String submissionData, String customComponentsDir) {
+        formDefinition = escapeUnsafeSymbols(formDefinition);
+        submissionData = escapeUnsafeSymbols(submissionData);
+        return String.format(script, formDefinition, submissionData, customComponentsDir);
+    }
+
+    private String escapeUnsafeSymbols(String string) {
+        return string.replaceAll("\"", "\\\\\"")
+                .replaceAll("'", "\\\\'")
+                .replaceAll("\\\\r|\\\\n", "");
     }
 
     private void checkErrors(byte[] stderrContent) {
