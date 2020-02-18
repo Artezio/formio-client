@@ -17,8 +17,6 @@ import javax.servlet.ServletContext;
 @Named
 public class AppResourceLoader implements AbstractResourceLoader {
 
-    private final static String PROCESS_ENGINE_NAME = System.getenv("PROCESS_ENGINE_NAME");
-
     @Inject
     private ServletContext servletContext;
 
