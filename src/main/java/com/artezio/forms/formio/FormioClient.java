@@ -1,5 +1,6 @@
 package com.artezio.forms.formio;
 
+import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.forms.FormClient;
 import com.artezio.forms.formio.exceptions.FormValidationException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -15,8 +16,13 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.servlet.ServletContext;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.*;
 import java.util.Map.Entry;
@@ -34,6 +40,7 @@ import static java.util.Arrays.asList;
 @Named
 public class FormioClient implements FormClient {
 
+    private static final Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "cleanUpAndValidate.js";
@@ -50,12 +57,14 @@ public class FormioClient implements FormClient {
     private NodeJsProcessor nodeJsProcessor;
     @Inject
     private FileAttributeConverter fileAttributeConverter;
+    @Inject
+    private ServletContext servletContext;
 
     @Override
-    public String getFormWithData(InputStream form, ObjectNode taskVariables, Map<String, InputStream> deploymentResources) {
+    public String getFormWithData(String formKey, ObjectNode taskVariables, ResourceLoader resourceLoader) {
         try {
-            JsonNode formDefinition = getForm(form);
-            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), taskVariables, deploymentResources);
+            JsonNode formDefinition = getForm(formKey, resourceLoader);
+            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), taskVariables);
             JsonNode data = wrapGridData(cleanData, formDefinition);
             ((ObjectNode) formDefinition).set("data", data);
             return formDefinition.toString();
@@ -65,8 +74,22 @@ public class FormioClient implements FormClient {
     }
 
     @Override
-    public boolean shouldProcessSubmission(InputStream form, String submissionState) {
-        JsonNode formDefinition = getForm(form);
+    public String getFormWithData(String formKey, ObjectNode taskVariables) {
+        try {
+            ResourceLoader resourceLoader = new DefaultResourceLoader();
+            JsonNode formDefinition = getForm(formKey, resourceLoader);
+            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), taskVariables);
+            JsonNode data = wrapGridData(cleanData, formDefinition);
+            ((ObjectNode) formDefinition).set("data", data);
+            return formDefinition.toString();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to get a form.", e);
+        }
+    }
+
+    @Override
+    public boolean shouldProcessSubmission(String formKey, String submissionState, ResourceLoader resourceLoader) {
+        JsonNode formDefinition = getForm(formKey, resourceLoader);
         String cacheKey = String.format("%s-%s", formDefinition.toString(), submissionState);
         return SUBMISSION_PROCESSING_DECISIONS_CACHE.computeIfAbsent(
                 cacheKey,
@@ -74,10 +97,17 @@ public class FormioClient implements FormClient {
     }
 
     @Override
-    public String dryValidationAndCleanup(InputStream form, ObjectNode submittedVariables,
-                                          ObjectNode taskVariables, Map<String, InputStream> publicResources) {
+    public String dryValidationAndCleanup(String formKey, ObjectNode submittedVariables,
+                                          ObjectNode taskVariables) {
+        ResourceLoader resourceLoader = new DefaultResourceLoader();
+        return dryValidationAndCleanup(formKey, submittedVariables, taskVariables, resourceLoader);
+    }
+
+    @Override
+    public String dryValidationAndCleanup(String formKey, ObjectNode submittedVariables,
+                                          ObjectNode taskVariables, ResourceLoader resourceLoader) {
         try {
-            JsonNode formDefinition = getForm(form);
+            JsonNode formDefinition = getForm(formKey, resourceLoader);
             String formDefinitionJson = formDefinition.toString();
             String customComponentsDir = getCustomComponentsDir();
             taskVariables = convertFilesInData(formDefinitionJson, taskVariables, fileAttributeConverter::toFormioFile);
@@ -93,8 +123,14 @@ public class FormioClient implements FormClient {
     }
 
     @Override
-    public List<String> getFormVariableNames(InputStream form) {
-        JsonNode formDefinition = getForm(form);
+    public List<String> getFormVariableNames(String formKey) {
+        DefaultResourceLoader resourceLoader = new DefaultResourceLoader();
+        return getFormVariableNames(formKey, resourceLoader);
+    }
+
+    @Override
+    public List<String> getFormVariableNames(String formKey, ResourceLoader resourceLoader) {
+        JsonNode formDefinition = getForm(formKey, resourceLoader);
         return Optional.ofNullable(getChildComponents(formDefinition))
                 .map(Collection::stream)
                 .orElse(Stream.empty())
@@ -104,21 +140,26 @@ public class FormioClient implements FormClient {
                 .collect(Collectors.toList());
     }
 
-    //TODO cache?
-    private JsonNode getForm(InputStream form) {
-        try {
-            return expandSubforms(JSON_MAPPER.readTree(form));
+    private JsonNode getForm(String formKey, ResourceLoader resourceLoader) {
+        try(InputStream resource = resourceLoader.getResource(formKey)) {
+            return FORMS_CACHE.computeIfAbsent(formKey, key -> {
+                try {
+                    return expandSubforms(JSON_MAPPER.readTree(resource), resourceLoader);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    //TODO implement
-    private JsonNode getSubform(String formKey) {
-        return JsonNodeFactory.instance.objectNode();
+    private JsonNode getSubform(String formKey, ResourceLoader resourceLoader) {
+        formKey = formKey + ".json";
+        return getForm(formKey, resourceLoader);
     }
 
-    private JsonNode cleanUnusedData(String formDefinition, ObjectNode taskVariables, Map<String, InputStream> publicResources) throws IOException {
+    private JsonNode cleanUnusedData(String formDefinition, ObjectNode taskVariables) throws IOException {
         ObjectNode formioSubmissionData = toFormIoSubmissionData(taskVariables);
         formioSubmissionData = convertFilesInData(formDefinition, formioSubmissionData, fileAttributeConverter::toFormioFile);
         String submissionData = JSON_MAPPER.writeValueAsString(formioSubmissionData);
@@ -134,39 +175,39 @@ public class FormioClient implements FormClient {
                 : JSON_MAPPER.createObjectNode();
     }
 
-    protected JsonNode expandSubforms(JsonNode form) {
+    protected JsonNode expandSubforms(JsonNode form, ResourceLoader resourceLoader) {
         Collector<JsonNode, ArrayNode, ArrayNode> arrayNodeCollector = Collector
                 .of(JSON_MAPPER::createArrayNode, ArrayNode::add, ArrayNode::addAll);
-        Function<JsonNode, JsonNode> expandSubformsFunction = getExpandSubformsFunction();
+        Function<JsonNode, JsonNode> expandSubformsFunction = getExpandSubformsFunction(resourceLoader);
         JsonNode components = toStream(form.get("components"))
                 .map(expandSubformsFunction)
                 .collect(arrayNodeCollector);
         return ((ObjectNode) form).set("components", components);
     }
 
-    private Function<JsonNode, JsonNode> getExpandSubformsFunction() {
+    private Function<JsonNode, JsonNode> getExpandSubformsFunction(ResourceLoader resourceLoader) {
         return component -> {
             if (hasTypeOf(component, "container") || isArrayComponent(component)) {
-                return expandSubforms(component);
+                return expandSubforms(component, resourceLoader);
             } else if (hasTypeOf(component, "form")) {
-                return convertToContainer(component);
+                return convertToContainer(component, resourceLoader);
             } else {
                 return component;
             }
         };
     }
 
-    private JsonNode convertToContainer(JsonNode formDefinition) {
+    private JsonNode convertToContainer(JsonNode formDefinition, ResourceLoader resourceLoader) {
         String formKey = formDefinition.get("key").asText();
-        JsonNode container = removeFormAttributes(formDefinition);
-        JsonNode components = getSubform(formKey).get("components").deepCopy();
+        JsonNode container = convertToContainer(formDefinition);
+        JsonNode components = getSubform(formKey, resourceLoader).get("components").deepCopy();
         ((ObjectNode) container).put("type", "container");
         ((ObjectNode) container).put("tree", true);
         ((ObjectNode) container).replace("components", components);
         return container;
     }
 
-    private JsonNode removeFormAttributes(JsonNode formDefinition) {
+    private JsonNode convertToContainer(JsonNode formDefinition) {
         List<String> formAttributes = asList("src", "reference", "form", "unique", "project", "path");
         Predicate<Map.Entry<String, JsonNode>> nonFormAttributesPredicate = field -> !formAttributes.contains(field.getKey());
         return JSON_MAPPER.valueToTree(toFieldStream(formDefinition)
@@ -497,6 +538,33 @@ public class FormioClient implements FormClient {
     //TODO implement
     private String getCustomComponentsDir() {
         return "";
+    }
+
+    private class DefaultResourceLoader implements ResourceLoader {
+        @Override
+        public InputStream getResource(String resourceKey) {
+            return servletContext.getResourceAsStream(resourceKey);
+        }
+
+        @Override
+        public List<String> listResourceNames(String initialPath) {
+            try {
+                String resourcePath = initialPath.startsWith("/") ? initialPath : "/" + initialPath;
+                URL url = servletContext.getResource(resourcePath);
+                if (url == null) return Collections.emptyList();
+                File resource = new File(url.toURI());
+                return Arrays.stream(resource.listFiles())
+                        .flatMap(file -> {
+                            String resourceName = initialPath + "/" + file.getName();
+                            return file.isDirectory()
+                                    ? listResourceNames(resourceName).stream()
+                                    : Arrays.asList(resourceName).stream();
+                        })
+                        .collect(Collectors.toList());
+            } catch (MalformedURLException | URISyntaxException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
 }
