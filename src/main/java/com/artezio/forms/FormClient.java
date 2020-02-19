@@ -7,10 +7,8 @@ import java.util.List;
 import java.util.Map;
 
 public interface FormClient {
-    String getFormWithData(String deploymentId, String formPath, ObjectNode taskVariables);
-    String dryValidationAndCleanup(String deploymentId, String formPath, ObjectNode submittedVariables, ObjectNode taskVariables);
-    boolean shouldProcessSubmission(String deploymentId, String formPath, String submissionState);
-    List<String> getFormVariableNames(String deploymentId, String formPath);
-    Map<String, String> listResources(String deploymentId, String formKey);
-    InputStream getResource(String deploymentId, String resourcePath);
+    String getFormWithData(InputStream form, ObjectNode taskVariables, Map<String, InputStream> publicResources);
+    String dryValidationAndCleanup(InputStream form, ObjectNode submittedVariables, ObjectNode taskVariables, Map<String, InputStream> publicResources);
+    boolean shouldProcessSubmission(InputStream form, String submissionState);
+    List<String> getFormVariableNames(InputStream form);
 }
