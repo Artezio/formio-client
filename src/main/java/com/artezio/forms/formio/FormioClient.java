@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.jayway.jsonpath.*;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import net.minidev.json.JSONArray;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.inject.Inject;
@@ -23,6 +24,9 @@ import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.*;
 import java.util.Map.Entry;
@@ -43,6 +47,7 @@ public class FormioClient implements FormClient {
     private static final Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private final static Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, String> CUSTOM_COMPONENTS_DIR_CACHE = new ConcurrentHashMap<>();
     private final static String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "cleanUpAndValidate.js";
     private final static String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
     private final static String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
@@ -52,6 +57,17 @@ public class FormioClient implements FormClient {
     private final static ParseContext JAYWAY_PARSER = JsonPath.using(Configuration.builder()
             .jsonProvider(new JacksonJsonNodeJsonProvider())
             .build());
+    private final static Path FORMIO_TEMP_DIR;
+    static {
+        try {
+            Path path = Paths.get(System.getProperty("java.io.tmpdir"), ".formio");
+            FORMIO_TEMP_DIR = path.toFile().exists()
+                    ? path
+                    : Files.createDirectory(path);
+        } catch (IOException e) {
+            throw new RuntimeException("Error while creating a directory", e);
+        }
+    }
 
     @Inject
     private NodeJsProcessor nodeJsProcessor;
@@ -64,7 +80,7 @@ public class FormioClient implements FormClient {
     public String getFormWithData(String formKey, ObjectNode taskVariables, ResourceLoader resourceLoader) {
         try {
             JsonNode formDefinition = getForm(formKey, resourceLoader);
-            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), taskVariables);
+            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), taskVariables, resourceLoader);
             JsonNode data = wrapGridData(cleanData, formDefinition);
             ((ObjectNode) formDefinition).set("data", data);
             return formDefinition.toString();
@@ -78,7 +94,7 @@ public class FormioClient implements FormClient {
         try {
             ResourceLoader resourceLoader = new DefaultResourceLoader();
             JsonNode formDefinition = getForm(formKey, resourceLoader);
-            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), taskVariables);
+            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), taskVariables, resourceLoader);
             JsonNode data = wrapGridData(cleanData, formDefinition);
             ((ObjectNode) formDefinition).set("data", data);
             return formDefinition.toString();
@@ -109,7 +125,7 @@ public class FormioClient implements FormClient {
         try {
             JsonNode formDefinition = getForm(formKey, resourceLoader);
             String formDefinitionJson = formDefinition.toString();
-            String customComponentsDir = getCustomComponentsDir();
+            String customComponentsDir = getCustomComponentsDir(formDefinitionJson, resourceLoader);
             taskVariables = convertFilesInData(formDefinitionJson, taskVariables, fileAttributeConverter::toFormioFile);
             ObjectNode formVariables = (ObjectNode) getFormVariables(formDefinition, submittedVariables, taskVariables);
             String submissionData = JSON_MAPPER.writeValueAsString(toFormIoSubmissionData(formVariables));
@@ -159,11 +175,11 @@ public class FormioClient implements FormClient {
         return getForm(formKey, resourceLoader);
     }
 
-    private JsonNode cleanUnusedData(String formDefinition, ObjectNode taskVariables) throws IOException {
+    private JsonNode cleanUnusedData(String formDefinition, ObjectNode taskVariables, ResourceLoader resourceLoader) throws IOException {
         ObjectNode formioSubmissionData = toFormIoSubmissionData(taskVariables);
         formioSubmissionData = convertFilesInData(formDefinition, formioSubmissionData, fileAttributeConverter::toFormioFile);
         String submissionData = JSON_MAPPER.writeValueAsString(formioSubmissionData);
-        String customComponentsDir = getCustomComponentsDir();
+        String customComponentsDir = getCustomComponentsDir(formDefinition, resourceLoader);
         byte[] cleanUpResult = nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition, submissionData, customComponentsDir);
         return getDataFromScriptExecutionResult(cleanUpResult);
     }
@@ -535,9 +551,47 @@ public class FormioClient implements FormClient {
         return !fileField.isEmpty();
     }
 
-    //TODO implement
-    private String getCustomComponentsDir() {
-        return "";
+    private String getCustomComponentsDir(String formDefinitionJson, ResourceLoader resourceLoader) {
+        String cacheKey = String.valueOf(formDefinitionJson.hashCode());
+        return CUSTOM_COMPONENTS_DIR_CACHE.computeIfAbsent(cacheKey, key -> {
+            try {
+                Path customComponentsDir = createCustomComponentsDir(key);
+                populateCustomComponentsDir(customComponentsDir, resourceLoader);
+                return customComponentsDir.toString();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private Path createCustomComponentsDir(String customComponentsDirName) throws IOException {
+        Path dir = Paths.get(FORMIO_TEMP_DIR.toString(), customComponentsDirName, "custom-components");
+        return dir.toFile().exists()
+                ? dir
+                : Files.createDirectories(dir);
+    }
+
+    private void populateCustomComponentsDir(Path customComponentsDir, ResourceLoader resourceLoader) {
+        resourceLoader.listResourceNames("custom-components")
+                .stream()
+                .filter(resourceKey -> resourceKey.endsWith(".js"))
+                .map(resourceKey -> resourceKey.substring("custom-components/".length()))
+                .forEach(resourceKey -> {
+                    try (InputStream resource = resourceLoader.getResource(resourceKey)) {
+                        Path destFile = Paths.get(customComponentsDir.toString(), resourceKey);
+                        copyToFile(resource, destFile);
+                    } catch (IOException e) {
+                        throw new RuntimeException("Could not populate custom components directory.", e);
+                    }
+                });
+    }
+
+    private void copyToFile(InputStream source, Path destination) throws IOException {
+        if (!destination.toFile().exists()) {
+            Files.createFile(destination);
+        }
+        byte[] bytes = IOUtils.toByteArray(source);
+        Files.write(destination, bytes);
     }
 
     private class DefaultResourceLoader implements ResourceLoader {
