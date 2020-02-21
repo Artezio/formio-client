@@ -1,6 +1,7 @@
 package com.artezio.forms.formio;
 
 import com.artezio.forms.formio.exceptions.FormioProcessorException;
+import net.minidev.json.JSONObject;
 import org.apache.commons.io.IOUtils;
 
 import javax.inject.Named;
@@ -69,15 +70,9 @@ public class NodeJsProcessor {
     }
 
     private String createCommand(String script, String formDefinition, String submissionData, String customComponentsDir) {
-        formDefinition = escapeUnsafeSymbols(formDefinition);
-        submissionData = escapeUnsafeSymbols(submissionData);
+        formDefinition = JSONObject.escape(formDefinition);
+        submissionData = JSONObject.escape(submissionData);
         return String.format(script, formDefinition, submissionData, customComponentsDir);
-    }
-
-    private String escapeUnsafeSymbols(String string) {
-        return string.replaceAll("\"", "\\\\\"")
-                .replaceAll("'", "\\\\'")
-                .replaceAll("\\\\r|\\\\n", "");
     }
 
     private void checkErrors(byte[] stderrContent) {
