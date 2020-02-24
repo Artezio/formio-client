@@ -72,7 +72,12 @@ public class NodeJsProcessor {
     private String createCommand(String script, String formDefinition, String submissionData, String customComponentsDir) {
         formDefinition = JSONObject.escape(formDefinition);
         submissionData = JSONObject.escape(submissionData);
+        customComponentsDir = toSafePath(customComponentsDir);
         return String.format(script, formDefinition, submissionData, customComponentsDir);
+    }
+
+    private String toSafePath(String customComponentsDir) {
+        return customComponentsDir.replaceAll("\\\\", "/");
     }
 
     private void checkErrors(byte[] stderrContent) {
