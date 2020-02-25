@@ -77,7 +77,7 @@ public class NodeJsProcessor {
     }
 
     private String toSafePath(String customComponentsDir) {
-        return customComponentsDir.replaceAll("\\\\", "/");
+        return customComponentsDir.replaceAll("\\\\", "\\\\\\");
     }
 
     private void checkErrors(byte[] stderrContent) {
