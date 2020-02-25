@@ -148,7 +148,7 @@ public class FormioClient implements FormClient {
     @Override
     public List<String> getFormVariableNames(String formKey, ResourceLoader resourceLoader) {
         JsonNode formDefinition = getForm(formKey, resourceLoader);
-        return Optional.ofNullable(getChildComponents(formDefinition))
+        return Optional.of(getChildComponents(formDefinition))
                 .map(Collection::stream)
                 .orElse(Stream.empty())
                 .filter(component -> component.path("input").asBoolean())

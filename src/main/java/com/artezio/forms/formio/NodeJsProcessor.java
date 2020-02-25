@@ -18,7 +18,8 @@ public class NodeJsProcessor {
 
     private static final Map<String, String> SCRIPTS_CACHE = new ConcurrentHashMap<>();
 
-    public synchronized byte[] executeScript(String scriptName, String formDefinition, String submissionData, String customComponentsDir) throws IOException {
+    public synchronized byte[] executeScript(String scriptName, String formDefinition, String submissionData, String customComponentsDir)
+            throws IOException {
         try {
             String script = loadScript(scriptName);
             Process nodeJs = runNodeJs(script, formDefinition, submissionData, customComponentsDir);
@@ -77,7 +78,7 @@ public class NodeJsProcessor {
     }
 
     private String toSafePath(String customComponentsDir) {
-        return customComponentsDir.replaceAll("\\\\", "\\\\\\");
+        return customComponentsDir.replaceAll("\\\\", "\\\\\\\\");
     }
 
     private void checkErrors(byte[] stderrContent) {
