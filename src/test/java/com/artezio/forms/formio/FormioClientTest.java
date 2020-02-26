@@ -419,6 +419,19 @@ public class FormioClientTest {
     }
 
     @Test
+    public void testGetFormVariableNames() throws URISyntaxException, FileNotFoundException {
+        String formKey = "forms/formWithMultilevelVariable.json";
+        FileInputStream form = new FileInputStream(getFile(PUBLIC_RESOURCES_DIRECTORY + "/" + formKey));
+        List<String> expected = asList("level1", "submit");
+
+        when(resourceLoader.getResource(formKey)).thenReturn(form);
+
+        List<String> actual = formioClient.getFormVariableNames(formKey, resourceLoader);
+
+        ListAssert.assertEquals(expected, actual);
+    }
+
+    @Test
     public void testWrapGridData() throws IOException, URISyntaxException {
         JsonNode definition = jsonMapper.readTree(getFile("forms/full-form-with-nested-forms.json"));
         JsonNode sourceData = jsonMapper.readTree(getFile("forms/full-form-with-nested-forms-data-submitted-wrap.json"));
