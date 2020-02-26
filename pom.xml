@@ -16,13 +16,6 @@
 		<powermock.version>2.0.5</powermock.version>
 	</properties>
 
-	<distributionManagement>
-		<repository>
-			<id>art-mvn-repo</id>
-			<url>https://maven.pkg.github.com/Artezio/ART-MVN-REPO</url>
-		</repository>
-	</distributionManagement>
-
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
