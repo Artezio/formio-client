@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import junitx.framework.ListAssert;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.camunda.bpm.BpmPlatform;
@@ -19,13 +20,11 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.URISyntaxException;
@@ -43,6 +42,7 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(BpmPlatform.class)
+@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*"})
 public class FormioClientTest {
 
     private static final String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "cleanUpAndValidate.js";
@@ -187,7 +187,7 @@ public class FormioClientTest {
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), any(String.class), eq(customComponentsDir)))
                 .thenReturn(scriptResultBytes);
@@ -277,7 +277,7 @@ public class FormioClientTest {
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, customComponentsDir))
                 .thenReturn(scriptResult);
@@ -318,7 +318,7 @@ public class FormioClientTest {
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinitionJson, submissionJson, customComponentsDir))
                 .thenReturn(scriptResult);
@@ -363,7 +363,7 @@ public class FormioClientTest {
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, customComponentsDir))
                 .thenReturn(scriptResultBytes);
@@ -403,7 +403,7 @@ public class FormioClientTest {
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, customComponentsDir))
                 .thenReturn(scriptResult);
