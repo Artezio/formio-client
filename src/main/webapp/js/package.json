@@ -1,0 +1,26 @@
+{
+  "name": "js-engine-server-side",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "webpack",
+    "rollup": "rollup -c ./rollup.config.js"
+  },
+  "dependencies": {
+    "formiojs": "^4.8.0-beta.9",
+    "jsdom": "^15.2.1",
+    "jsdom-global": "^3.0.2"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.7.5",
+    "@babel/core": "^7.7.5",
+    "@babel/node": "^7.7.4",
+    "@babel/plugin-transform-destructuring": "^7.7.4",
+    "@babel/polyfill": "^7.7.0",
+    "@babel/preset-env": "^7.7.6",
+    "babel-loader": "^8.0.6",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10"
+  }
+}
