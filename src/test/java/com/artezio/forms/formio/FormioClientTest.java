@@ -9,7 +9,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import junitx.framework.ListAssert;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.camunda.bpm.BpmPlatform;
 import org.camunda.bpm.ProcessEngineService;
 import org.camunda.bpm.engine.ProcessEngine;
@@ -93,18 +92,19 @@ public class FormioClientTest {
     public void tearDown() throws NoSuchFieldException, IllegalAccessException {
         Field formsCacheField = FormioClient.class.getDeclaredField("FORMS_CACHE");
         Field submitButtonsCacheField = FormioClient.class.getDeclaredField("SUBMISSION_PROCESSING_DECISIONS_CACHE");
-        Field customComponentsCacheField = FormioClient.class.getDeclaredField("CUSTOM_COMPONENTS_DIR_CACHE");
+        Field formResourcesDirCacheField = FormioClient.class.getDeclaredField("FORM_RESOURCES_DIR_CACHE");
         formsCacheField.setAccessible(true);
         submitButtonsCacheField.setAccessible(true);
-        customComponentsCacheField.setAccessible(true);
+        formResourcesDirCacheField.setAccessible(true);
         ((Map<String, JsonNode>) formsCacheField.get(FormioClient.class)).clear();
         ((Map<String, JsonNode>) submitButtonsCacheField.get(FormioClient.class)).clear();
-        ((Map<String, JsonNode>) customComponentsCacheField.get(FormioClient.class)).clear();
+        ((Map<String, JsonNode>) formResourcesDirCacheField.get(FormioClient.class)).clear();
     }
 
     @AfterClass
     public static void deleteTestTmpDir() throws IOException {
         FileUtils.deleteDirectory(TEST_FORMIO_TMP_DIR.toFile());
+        FileUtils.deleteDirectory(Paths.get(System.getProperty("java.io.tmpdir"), ".formio").toFile());
     }
     
     @Test
@@ -124,26 +124,28 @@ public class FormioClientTest {
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
-        String customComponent1FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent1RelativePath;
+        String customComponent1FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent1RelativePath).toString();
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
-        String customComponent2FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent2RelativePath;
-        String customComponentsDir = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode()), "custom-components").toString();
+        String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
+        String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
-        when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionJson, customComponentsDir))
+        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
+        when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
                 .thenReturn(scriptResult);
 
         String actual = formioClient.getFormWithData(formKey, submissionData, resourceLoader);
 
         assertEquals(expected.toString(), actual);
-        File file = new File(customComponentsDir);
-        assertTrue(file.exists());
-        assertTrue(file.isDirectory());
-        assertEquals(2, file.listFiles().length);
-        FileUtils.deleteDirectory(new File(customComponentsDir));
+        File formResourcesDir = new File(formResourcesDirPath);
+        assertTrue(formResourcesDir.exists());
+        File customComponentsDir = formResourcesDir.listFiles()[0];
+        assertEquals("custom-components", customComponentsDir.getName());
+        assertEquals(2, customComponentsDir.listFiles().length);
+        FileUtils.deleteDirectory(formResourcesDir);
     }
 
     @Test
@@ -180,16 +182,17 @@ public class FormioClientTest {
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
-        String customComponent1FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent1RelativePath;
+        String customComponent1FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent1RelativePath).toString();
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
-        String customComponent2FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent2RelativePath;
-        String customComponentsDir = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode()), "custom-components").toString();
+        String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
+        String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
-        when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), any(String.class), eq(customComponentsDir)))
+        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
+        when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString(), eq(formResourcesDirPath)))
                 .thenReturn(scriptResultBytes);
 
         String actual = formioClient.getFormWithData(formKey, submissionData, resourceLoader);
@@ -201,11 +204,12 @@ public class FormioClientTest {
         assertTrue(actualData.has("testFile"));
         assertFalse(actualData.at("/testFile/0/name").isMissingNode());
         assertEquals(formKey, actualData.at("/testFile/0/name").asText());
-        File file = new File(customComponentsDir);
-        assertTrue(file.exists());
-        assertTrue(file.isDirectory());
-        assertEquals(2, file.listFiles().length);
-        FileUtils.deleteDirectory(new File(customComponentsDir));
+        File formResourcesDir = new File(formResourcesDirPath);
+        assertTrue(formResourcesDir.exists());
+        File customComponentsDir = formResourcesDir.listFiles()[0];
+        assertEquals("custom-components", customComponentsDir.getName());
+        assertEquals(2, customComponentsDir.listFiles().length);
+        FileUtils.deleteDirectory(formResourcesDir);
     }
 
     @Test
@@ -224,32 +228,34 @@ public class FormioClientTest {
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
         String formDefinitionJson = formDefinition.toString();
-        JsonNode scriptResult = formDefinition.deepCopy();
-        ((ObjectNode) scriptResult).set("data", jsonMapper.createObjectNode());
-        byte[] scriptResultBytes = scriptResult.toString().getBytes();
+        JsonNode expected = formDefinition.deepCopy();
+        ((ObjectNode) expected).set("data", jsonMapper.createObjectNode());
+        byte[] scriptResult = expected.toString().getBytes();
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
-        String customComponent1FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent1RelativePath;
+        String customComponent1FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent1RelativePath).toString();
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
-        String customComponent2FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent2RelativePath;
-        String customComponentsDir = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode()), "custom-components").toString();
+        String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
+        String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
-        when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), any(String.class), eq(customComponentsDir)))
-                .thenReturn(scriptResultBytes);
+        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
+        when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString(), eq(formResourcesDirPath)))
+                .thenReturn(scriptResult);
 
         String actual = formioClient.getFormWithData(formKey, submissionData, resourceLoader);
 
-        assertEquals(scriptResult.toString(), actual);
-        File file = new File(customComponentsDir);
-        assertTrue(file.exists());
-        assertTrue(file.isDirectory());
-        assertEquals(2, file.listFiles().length);
-        FileUtils.deleteDirectory(new File(customComponentsDir));
+        assertEquals(expected.toString(), actual);
+        File formResourcesDir = new File(formResourcesDirPath);
+        assertTrue(formResourcesDir.exists());
+        File customComponentsDir = formResourcesDir.listFiles()[0];
+        assertEquals("custom-components", customComponentsDir.getName());
+        assertEquals(2, customComponentsDir.listFiles().length);
+        FileUtils.deleteDirectory(formResourcesDir);
     }
 
     @Test
@@ -270,26 +276,28 @@ public class FormioClientTest {
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
-        String customComponent1FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent1RelativePath;
+        String customComponent1FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent1RelativePath).toString();
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
-        String customComponent2FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent2RelativePath;
-        String customComponentsDir = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode()), "custom-components").toString();
+        String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
+        String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
-        when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, customComponentsDir))
+        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
+        when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
                 .thenReturn(scriptResult);
 
         String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
 
         assertEquals(jsonMapper.writeValueAsString(currentVariables), actual);
-        File file = new File(customComponentsDir);
-        assertTrue(file.exists());
-        assertTrue(file.isDirectory());
-        assertEquals(2, file.listFiles().length);
-        FileUtils.deleteDirectory(new File(customComponentsDir));
+        File formResourcesDir = new File(formResourcesDirPath);
+        assertTrue(formResourcesDir.exists());
+        File customComponentsDir = formResourcesDir.listFiles()[0];
+        assertEquals("custom-components", customComponentsDir.getName());
+        assertEquals(2, customComponentsDir.listFiles().length);
+        FileUtils.deleteDirectory(formResourcesDir);
     }
 
     @Test
@@ -311,25 +319,28 @@ public class FormioClientTest {
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
-        String customComponent1FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent1RelativePath;
+        String customComponent1FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent1RelativePath).toString();
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
-        String customComponent2FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent2RelativePath;
-        String customComponentsDir = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode()), "custom-components").toString();
+        String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
+        String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
-        when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinitionJson, submissionJson, customComponentsDir))
+        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
+        when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
                 .thenReturn(scriptResult);
 
         String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
+
         assertEquals(jsonMapper.writeValueAsString(submittedVariables), actual);
-        File file = new File(customComponentsDir);
-        assertTrue(file.exists());
-        assertTrue(file.isDirectory());
-        assertEquals(2, file.listFiles().length);
-        FileUtils.deleteDirectory(new File(customComponentsDir));
+        File formResourcesDir = new File(formResourcesDirPath);
+        assertTrue(formResourcesDir.exists());
+        File customComponentsDir = formResourcesDir.listFiles()[0];
+        assertEquals("custom-components", customComponentsDir.getName());
+        assertEquals(2, customComponentsDir.listFiles().length);
+        FileUtils.deleteDirectory(formResourcesDir);
     }
 
     @Test
@@ -356,26 +367,28 @@ public class FormioClientTest {
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
-        String customComponent1FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent1RelativePath;
+        String customComponent1FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent1RelativePath).toString();
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
-        String customComponent2FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent2RelativePath;
-        String customComponentsDir = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode()), "custom-components").toString();
+        String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
+        String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
-        when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, customComponentsDir))
+        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
+        when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
                 .thenReturn(scriptResultBytes);
 
         String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
 
         assertEquals(expected, jsonMapper.readTree(actual));
-        File file = new File(customComponentsDir);
-        assertTrue(file.exists());
-        assertTrue(file.isDirectory());
-        assertEquals(2, file.listFiles().length);
-        FileUtils.deleteDirectory(new File(customComponentsDir));
+        File formResourcesDir = new File(formResourcesDirPath);
+        assertTrue(formResourcesDir.exists());
+        File customComponentsDir = formResourcesDir.listFiles()[0];
+        assertEquals("custom-components", customComponentsDir.getName());
+        assertEquals(2, customComponentsDir.listFiles().length);
+        FileUtils.deleteDirectory(formResourcesDir);
     }
 
     @Test
@@ -396,26 +409,28 @@ public class FormioClientTest {
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
-        String customComponent1FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent1RelativePath;
+        String customComponent1FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent1RelativePath).toString();
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
-        String customComponent2FullPath = PUBLIC_RESOURCES_DIRECTORY + "/" + customComponent2RelativePath;
-        String customComponentsDir = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode()), "custom-components").toString();
+        String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
+        String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
-        when(resourceLoader.getResource(customComponent1Name)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
-        when(resourceLoader.getResource(customComponent2Name)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, customComponentsDir))
+        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
+        when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
                 .thenReturn(scriptResult);
 
         String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
 
         assertEquals(jsonMapper.writeValueAsString(submittedVariables), actual);
-        File file = new File(customComponentsDir);
-        assertTrue(file.exists());
-        assertTrue(file.isDirectory());
-        assertEquals(2, file.listFiles().length);
-        FileUtils.deleteDirectory(new File(customComponentsDir));
+        File formResourcesDir = new File(formResourcesDirPath);
+        assertTrue(formResourcesDir.exists());
+        File customComponentsDir = formResourcesDir.listFiles()[0];
+        assertEquals("custom-components", customComponentsDir.getName());
+        assertEquals(2, customComponentsDir.listFiles().length);
+        FileUtils.deleteDirectory(formResourcesDir);
     }
 
     @Test
@@ -553,7 +568,7 @@ public class FormioClientTest {
         file.put("originalName", filename);
         byte[] data;
         try {
-            data = IOUtils.toByteArray(new FileInputStream(getFile(filename)));
+            data = new FileInputStream(getFile(filename)).readAllBytes();
         } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
             throw new RuntimeException("Could not load file");
@@ -572,7 +587,7 @@ public class FormioClientTest {
         file.put("filename", filename);
         byte[] data;
         try {
-            data = IOUtils.toByteArray(new FileInputStream(getFile(filename)));
+            data = new FileInputStream(getFile(filename)).readAllBytes();
         } catch (IOException | URISyntaxException e) {
             e.printStackTrace();
             throw new RuntimeException("Could not load file");

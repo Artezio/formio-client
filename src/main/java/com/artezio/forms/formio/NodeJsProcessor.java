@@ -2,7 +2,6 @@ package com.artezio.forms.formio;
 
 import com.artezio.forms.formio.exceptions.FormioProcessorException;
 import net.minidev.json.JSONObject;
-import org.apache.commons.io.IOUtils;
 
 import javax.inject.Named;
 import java.io.BufferedOutputStream;
@@ -46,7 +45,7 @@ public class NodeJsProcessor {
     }
 
     private byte[] toByteArray(InputStream inputStream) throws IOException {
-        byte[] bytes = IOUtils.toByteArray(inputStream);
+        byte[] bytes = inputStream.readAllBytes();
         inputStream.close();
         return bytes;
     }
@@ -54,7 +53,7 @@ public class NodeJsProcessor {
     private String loadScript(String scriptName) {
         return SCRIPTS_CACHE.computeIfAbsent(scriptName, name -> {
             try (InputStream scriptResource = getClass().getClassLoader().getResourceAsStream("formio-scripts/" + scriptName)) {
-                return IOUtils.toString(scriptResource, StandardCharsets.UTF_8);
+                return new String(scriptResource.readAllBytes(), StandardCharsets.UTF_8);
             } catch (IOException ex) {
                 throw new RuntimeException("Could not load script " + scriptName, ex);
             }

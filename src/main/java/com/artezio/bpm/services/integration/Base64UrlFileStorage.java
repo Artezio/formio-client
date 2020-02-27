@@ -2,7 +2,6 @@ package com.artezio.bpm.services.integration;
 
 import com.artezio.bpm.services.integration.cdi.DefaultImplementation;
 import com.artezio.utils.Base64Utils;
-import org.apache.commons.io.IOUtils;
 import org.apache.tika.Tika;
 
 import javax.inject.Named;
@@ -19,12 +18,12 @@ public class Base64UrlFileStorage implements FileStorage {
     @Override
     public String store(InputStream dataStream) {
         try {
-            byte[] data = IOUtils.toByteArray(dataStream);
+            byte[] data = dataStream.readAllBytes();
             String base64encodedData = Base64.getMimeEncoder().encodeToString(data);
             String dataHeader = String.format("data:%s;base64,", getContentType(data));
             return dataHeader + base64encodedData;
         } catch (IOException e) {
-            throw new RuntimeException("An error occured while serializing the file to base64 url components", e);
+            throw new RuntimeException("An error occurred while serializing the file to base64 url components", e);
         }
     }
 
