@@ -154,15 +154,17 @@ public class FormioClient implements FormClient {
                 .collect(Collectors.toList());
     }
 
+    //TODO find the best way to make forms immutable
     private JsonNode getForm(String formKey, ResourceLoader resourceLoader) {
         try(InputStream resource = resourceLoader.getResource(formKey)) {
-            return FORMS_CACHE.computeIfAbsent(formKey, key -> {
+            JsonNode form = FORMS_CACHE.computeIfAbsent(formKey, key -> {
                 try {
                     return expandSubforms(JSON_MAPPER.readTree(resource), resourceLoader);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             });
+            return form.deepCopy();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
