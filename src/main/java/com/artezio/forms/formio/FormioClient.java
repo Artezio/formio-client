@@ -570,10 +570,7 @@ public class FormioClient implements FormClient {
     }
 
     private void populateFormResourcesDir(Path formReourcesDir, ResourceLoader resourceLoader) {
-        String resourcesDirectory = resourceLoader.getResourcesDirectory() + "/";
         resourceLoader.listResourceNames()
-                .stream()
-                .map(resourceKey -> resourceKey.substring(resourcesDirectory.length()))
                 .forEach(resourceKey -> {
                     try (InputStream resource = resourceLoader.getResource(resourceKey)) {
                         Path destFile = Paths.get(formReourcesDir.toString(), resourceKey);
@@ -611,12 +608,9 @@ public class FormioClient implements FormClient {
 
         @Override
         public List<String> listResourceNames() {
-            return listResourceNames(rootDirectory);
-        }
-
-        @Override
-        public String getResourcesDirectory() {
-            return rootDirectory;
+            return listResourceNames(rootDirectory).stream()
+                    .map(resourceName -> resourceName.substring((rootDirectory + "/").length()))
+                    .collect(Collectors.toList());
         }
 
         private List<String> listResourceNames(String resourcesDirectory) {

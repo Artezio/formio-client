@@ -130,8 +130,7 @@ public class FormioClientTest {
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
@@ -188,8 +187,7 @@ public class FormioClientTest {
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString(), eq(formResourcesDirPath)))
@@ -240,8 +238,7 @@ public class FormioClientTest {
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString(), eq(formResourcesDirPath)))
@@ -282,8 +279,7 @@ public class FormioClientTest {
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
@@ -325,8 +321,7 @@ public class FormioClientTest {
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
@@ -373,8 +368,7 @@ public class FormioClientTest {
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
@@ -415,8 +409,7 @@ public class FormioClientTest {
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
-        when(resourceLoader.getResourcesDirectory()).thenReturn(PUBLIC_RESOURCES_DIRECTORY);
-        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1FullPath, customComponent2FullPath));
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
