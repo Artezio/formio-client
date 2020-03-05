@@ -1,7 +1,6 @@
 const { Formio } = require('formiojs');
 const fs = require('fs');
 const path = require('path');
-const takeFromStdin = require('./takeFromStdin');
 
 function registerComponent(componentDetails = {}) {
     const { name, path } = componentDetails;
@@ -10,8 +9,8 @@ function registerComponent(componentDetails = {}) {
     Formio.registerComponent(name, customComponent);
 }
 
-module.exports = function registerCustomComponents() {
-    const [, , pathToCustomComponentsFolder] = takeFromStdin();
+module.exports = function registerCustomComponents(resourcePath) {
+    const pathToCustomComponentsFolder = fs.existsSync(path.resolve(resourcePath, CUSTOM_COMPONENTS_FOLDER_NAME)) ? path.resolve(resourcePath, CUSTOM_COMPONENTS_FOLDER_NAME) : undefined;
 
     if (!pathToCustomComponentsFolder) return;
 

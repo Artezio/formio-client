@@ -1,8 +1,5 @@
-require('./initJsDomGlobal');
-const registerCustomComponents = require('./registerCustomComponents');
 const { Formio } = require('formiojs');
 
-registerCustomComponents();
 const body = document.body;
 
 module.exports = function validateSubmission(form, submission) {

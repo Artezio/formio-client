@@ -3,13 +3,10 @@ const path = require('path');
 const externalLibs = ['jsdom-global', 'formiojs', 'fs', 'path'];
 
 module.exports = {
-  entry: {
-    cleanUpAndValidate: path.resolve(__dirname, './cleanUpAndValidate.js'),
-    cleanUp: path.resolve(__dirname, './cleanUp.js')
-  },
+  entry: 'index.js',
   output: {
     path: path.resolve(__dirname, './/..//..//resources/formio-scripts'),
-    chunkFilename: '[id].js'
+    chunkFilename: 'index.js'
   },
   externals: [
     function (context, request, callback) {
