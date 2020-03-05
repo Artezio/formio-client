@@ -7,9 +7,6 @@ import javax.inject.Named;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -63,10 +60,9 @@ public class NodeJsProcessor {
     private Process runNodeJs(String script, String formDefinition, String submissionData, String customComponentsDir) throws IOException {
         Process process = new ProcessBuilder("node").start();
         String command = createCommand(script, formDefinition, submissionData, customComponentsDir);
-        ByteBuffer byteBuffer = ByteBuffer.wrap(command.getBytes());
-        try (BufferedOutputStream outputStream = (BufferedOutputStream) process.getOutputStream();
-             WritableByteChannel byteChannel = Channels.newChannel(outputStream)) {
-            byteChannel.write(byteBuffer);
+        try (BufferedOutputStream outputStream = (BufferedOutputStream) process.getOutputStream()) {
+            outputStream.write(command.getBytes(StandardCharsets.UTF_8));
+            outputStream.flush();
             return process;
         }
     }
@@ -75,7 +71,7 @@ public class NodeJsProcessor {
         formDefinition = JSONObject.escape(formDefinition);
         submissionData = JSONObject.escape(submissionData);
         customComponentsDir = toSafePath(customComponentsDir);
-        return String.format(script, formDefinition, submissionData, customComponentsDir) + System.lineSeparator();
+        return String.format(script, formDefinition, submissionData, customComponentsDir);
     }
 
     private String toSafePath(String customComponentsDir) {
