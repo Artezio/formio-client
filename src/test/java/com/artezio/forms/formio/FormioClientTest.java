@@ -3,6 +3,7 @@ package com.artezio.forms.formio;
 import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.bpm.services.integration.Base64UrlFileStorage;
 import com.artezio.bpm.services.integration.FileStorage;
+import com.artezio.forms.formio.exceptions.FormValidationException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -44,8 +45,8 @@ import static org.mockito.internal.util.reflection.FieldSetter.setField;
 @PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*"})
 public class FormioClientTest {
 
-    private static final String DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME = "cleanUpAndValidate.js";
-    private static final String CLEAN_UP_SCRIPT_NAME = "cleanUp.js";
+    private static final String VALIDATION_OPERATION_NAME = "validate";
+    private static final String CLEANUP_OPERATION_NAME = "cleanup";
     private static final Path TEST_FORMIO_TMP_DIR = Paths.get(System.getProperty("java.io.tmpdir"), ".test-formio");
     private static final String PUBLIC_RESOURCES_DIRECTORY = "public";
 
@@ -53,7 +54,7 @@ public class FormioClientTest {
     public ProcessEngineRule processEngineRule = new ProcessEngineRule();
 
     @Mock
-    private NodeJsProcessor nodeJsProcessor;
+    private NodeJs nodeJs;
     @Mock
     private RepositoryService repositoryService;
     @Mock
@@ -63,6 +64,9 @@ public class FormioClientTest {
     @InjectMocks
     private FormioClient formioClient = new FormioClient();
     private ObjectMapper jsonMapper = new ObjectMapper();
+
+    public FormioClientTest() throws IOException {
+    }
 
     @BeforeClass
     public static void createTestTmpDir() throws NoSuchFieldException, IllegalAccessException {
@@ -106,21 +110,18 @@ public class FormioClientTest {
         FileUtils.deleteDirectory(TEST_FORMIO_TMP_DIR.toFile());
         FileUtils.deleteDirectory(Paths.get(System.getProperty("java.io.tmpdir"), ".formio").toFile());
     }
-    
+
     @Test
     public void testGetFormWithData_NoDataPassed() throws IOException, URISyntaxException {
         String formKey = "forms/testForm.json";
-        ObjectNode data = jsonMapper.createObjectNode();
-        ObjectNode submissionData = jsonMapper.createObjectNode();
-        submissionData.set("data", data);
-        String submissionJson = jsonMapper.writeValueAsString(submissionData);
+        ObjectNode taskVariables = jsonMapper.createObjectNode();
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
         String formDefinitionJson = formDefinition.toString();
+        JsonNode cleanupResult = jsonMapper.createObjectNode();
         JsonNode expected = formDefinition.deepCopy();
-        ((ObjectNode) expected).set("data", jsonMapper.createObjectNode());
-        byte[] scriptResult = expected.toString().getBytes();
+        ((ObjectNode) expected).set("data", cleanupResult);
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
@@ -128,15 +129,15 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
+        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinitionJson, taskVariables.toString(), formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(CLEAN_UP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
-                .thenReturn(scriptResult);
+        when(nodeJs.execute(formIoBundle)).thenReturn(cleanupResult.toString());
 
-        String actual = formioClient.getFormWithData(formKey, submissionData, resourceLoader);
+        String actual = formioClient.getFormWithData(formKey, taskVariables, resourceLoader);
 
         assertEquals(expected.toString(), actual);
         File formResourcesDir = new File(formResourcesDirPath);
@@ -149,7 +150,7 @@ public class FormioClientTest {
 
     @Test
     //TODO Fix
-    // Instead of exact value of submission any(String.class) is passed into 'nodeJsProcess.executeScript()' scenario
+    // Instead of exact value of formIoBundle anyString() is passed into 'nodeJs.execute()' scenario
     // because of the problem with file conversion
     public void testGetFormWithData_ExistentDataPassed() throws IOException, URISyntaxException {
         String formKey = "forms/testForm.json";
@@ -159,25 +160,17 @@ public class FormioClientTest {
         ObjectNode container = jsonMapper.createObjectNode();
         container.put("containerField", "123");
         taskData.set("container", container);
-        ObjectNode submissionData = jsonMapper.createObjectNode();
-        submissionData.set("data", taskData);
-        ObjectNode scriptResultData = jsonMapper.createObjectNode();
-        ArrayNode scriptResultFileData = getFormioFileData(formKey, "application/json");
-        scriptResultData.set("testFile", scriptResultFileData);
-        ObjectNode scriptResultContainer = jsonMapper.createObjectNode();
-        scriptResultContainer.put("containerField", "123");
-        scriptResultData.set("container", scriptResultContainer);
-        ObjectNode scriptResult = jsonMapper.createObjectNode();
-        scriptResult.set("data", scriptResultData);
-        byte[] scriptResultBytes = scriptResult.toString().getBytes();
+        ObjectNode cleanupResult = jsonMapper.createObjectNode();
+        cleanupResult.set("testFile", getFormioFileData(formKey, "application/json"));
+        ObjectNode cleanupResultContainer = jsonMapper.createObjectNode();
+        cleanupResultContainer.put("containerField", "123");
+        cleanupResult.set("container", cleanupResultContainer);
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
         JsonNode expected = formDefinition.deepCopy();
         String formDefinitionJson = formDefinition.toString();
-        ObjectNode expectedData = jsonMapper.valueToTree(taskData);
-        expectedData.set("testFile", taskFile);
-        ((ObjectNode) expected).set("data", expectedData);
+        ((ObjectNode) expected).set("data", cleanupResult);
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
@@ -185,15 +178,15 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
+//        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition.toString(), submissionData.toString(), formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString(), eq(formResourcesDirPath)))
-                .thenReturn(scriptResultBytes);
+        when(nodeJs.execute(anyString())).thenReturn(cleanupResult.toString());
 
-        String actual = formioClient.getFormWithData(formKey, submissionData, resourceLoader);
+        String actual = formioClient.getFormWithData(formKey, taskData, resourceLoader);
         JsonNode actualJson = jsonMapper.readTree(actual);
 
         assertTrue(actualJson.has("data"));
@@ -212,23 +205,19 @@ public class FormioClientTest {
 
     @Test
     //TODO Fix
-    // Instead of exact value of submission any(String.class) is passed into 'nodeJsProcess.executeScript()' scenario
+    // Instead of exact value of formIoBundle anyString() is passed into 'nodeJs.execute()' scenario
     // because of the problem with file conversion
     public void testGetFormWithData_NonexistentDataPassed() throws IOException, URISyntaxException {
         String formKey = "forms/testForm.json";
-        ObjectNode data = jsonMapper.createObjectNode();
-        ArrayNode multiFileNode = getCamundaFileData(formKey, "application/json");
-        data.set("testFile", multiFileNode);
-        ObjectNode submissionData = jsonMapper.createObjectNode();
-        submissionData.set("data", data.deepCopy());
-        ((ObjectNode) submissionData.get("data")).replace("testFile", multiFileNode);
+        ObjectNode taskVariables = jsonMapper.createObjectNode();
+        taskVariables.set("testFile", getCamundaFileData(formKey, "application/json"));
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
         String formDefinitionJson = formDefinition.toString();
+        JsonNode cleanupResult = jsonMapper.createObjectNode();
         JsonNode expected = formDefinition.deepCopy();
-        ((ObjectNode) expected).set("data", jsonMapper.createObjectNode());
-        byte[] scriptResult = expected.toString().getBytes();
+        ((ObjectNode) expected).set("data", cleanupResult);
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
@@ -236,15 +225,15 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
+//        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition.toString(), submissionData.toString(), formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(eq(CLEAN_UP_SCRIPT_NAME), eq(formDefinition.toString()), anyString(), eq(formResourcesDirPath)))
-                .thenReturn(scriptResult);
+        when(nodeJs.execute(anyString())).thenReturn(cleanupResult.toString());
 
-        String actual = formioClient.getFormWithData(formKey, submissionData, resourceLoader);
+        String actual = formioClient.getFormWithData(formKey, taskVariables, resourceLoader);
 
         assertEquals(expected.toString(), actual);
         File formResourcesDir = new File(formResourcesDirPath);
@@ -259,17 +248,15 @@ public class FormioClientTest {
     public void dryValidationAndCleanupTest_NoDataPassed() throws IOException, URISyntaxException {
         String formKey = "forms/testForm.json";
         ObjectNode submittedVariables = jsonMapper.createObjectNode();
-        ObjectNode currentVariables = jsonMapper.createObjectNode();
-        ObjectNode submissionData = jsonMapper.createObjectNode();
-        submissionData.set("data", submittedVariables);
-        String submissionJson = submissionData.toString();
+        ObjectNode taskVariables = jsonMapper.createObjectNode();
+        String formVariables = "{}";
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
+        JsonNode validationResult = jsonMapper.createObjectNode();
         JsonNode expected = formDefinition.deepCopy();
         String formDefinitionJson = formDefinition.toString();
-        ((ObjectNode) expected).set("data", jsonMapper.createObjectNode());
-        byte[] scriptResult = expected.toString().getBytes();
+        ((ObjectNode) expected).set("data", validationResult);
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
@@ -277,17 +264,17 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
+        String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariables, formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
-                .thenReturn(scriptResult);
+        when(nodeJs.execute(formIoBundle)).thenReturn(validationResult.toString());
 
-        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
+        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, taskVariables, resourceLoader);
 
-        assertEquals(jsonMapper.writeValueAsString(currentVariables), actual);
+        assertEquals(jsonMapper.writeValueAsString(taskVariables), actual);
         File formResourcesDir = new File(formResourcesDirPath);
         assertTrue(formResourcesDir.exists());
         File customComponentsDir = formResourcesDir.listFiles()[0];
@@ -302,16 +289,15 @@ public class FormioClientTest {
         ObjectNode currentVariables = jsonMapper.createObjectNode();
         ObjectNode submittedVariables = jsonMapper.createObjectNode();
         submittedVariables.put("text", "123");
-        ObjectNode submissionData = jsonMapper.createObjectNode();
-        submissionData.set("data", submittedVariables);
-        String submissionJson = submissionData.toString();
+        ObjectNode formVariables = jsonMapper.createObjectNode();
+        formVariables.setAll(submittedVariables);
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
         String formDefinitionJson = formDefinition.toString();
+        JsonNode validationResult = formVariables.deepCopy();
         JsonNode expected = formDefinition.deepCopy();
         ((ObjectNode) expected).set("data", jsonMapper.valueToTree(submittedVariables));
-        byte[] scriptResult = expected.toString().getBytes();
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
@@ -319,13 +305,13 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
+        String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariables.toString(), formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
-                .thenReturn(scriptResult);
+        when(nodeJs.execute(formIoBundle)).thenReturn(validationResult.toString());
 
         String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
 
@@ -349,16 +335,12 @@ public class FormioClientTest {
         ObjectNode expected = jsonMapper.createObjectNode();
         expected.put("text", "123");
         expected.put("readOnly", "test");
-        ObjectNode formVariables = jsonMapper.createObjectNode();
-        formVariables.set("data", expected.deepCopy());
-        String submissionJson = formVariables.toString();
+        ObjectNode data = jsonMapper.createObjectNode();
+        data.setAll(expected);
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
         String formDefinitionJson = formDefinition.toString();
-        ObjectNode scriptResult = jsonMapper.createObjectNode();
-        scriptResult.set("data", jsonMapper.valueToTree(expected));
-        byte[] scriptResultBytes = formVariables.toString().getBytes();
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
@@ -366,13 +348,13 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
+        String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinition.toString(), data.toString(), formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
-                .thenReturn(scriptResultBytes);
+        when(nodeJs.execute(formIoBundle)).thenReturn(expected.toString());
 
         String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
 
@@ -385,21 +367,19 @@ public class FormioClientTest {
         FileUtils.deleteDirectory(formResourcesDir);
     }
 
-    @Test
+    @Test(expected = FormValidationException.class)
     public void dryValidationAndCleanupTest_InvalidDataPassed() throws IOException, URISyntaxException {
         String formKey = "forms/testForm.json";
         ObjectNode currentVariables = jsonMapper.createObjectNode();
         ObjectNode submittedVariables = jsonMapper.createObjectNode();
-        ObjectNode submittedVariablesInFormioView = jsonMapper.createObjectNode();
-        submittedVariablesInFormioView.set("data", submittedVariables.deepCopy());
-        String submissionJson = submittedVariablesInFormioView.toString();
+        ObjectNode formVariables = jsonMapper.createObjectNode();
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
+        JsonNode validationResult = jsonMapper.createObjectNode();
         JsonNode expected = formDefinition.deepCopy();
         String formDefinitionJson = formDefinition.toString();
-        ((ObjectNode) expected).set("data", jsonMapper.createObjectNode());
-        byte[] scriptResult = expected.toString().getBytes();
+        ((ObjectNode) expected).set("data", validationResult);
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
@@ -407,13 +387,13 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
+        String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariables.toString(), formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(nodeJsProcessor.executeScript(DRY_VALIDATION_AND_CLEANUP_SCRIPT_NAME, formDefinition.toString(), submissionJson, formResourcesDirPath))
-                .thenReturn(scriptResult);
+        when(nodeJs.execute(formIoBundle)).thenThrow(FormValidationException.class);
 
         String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
 
@@ -632,6 +612,20 @@ public class FormioClientTest {
 
     private File getFile(String fileName) throws URISyntaxException {
         return new File(getClass().getClassLoader().getResource(fileName).toURI());
+    }
+
+    private String toFormIoBundle(String operation, String formDefinition, String data, String customComponentsDir)
+            throws IOException {
+        ObjectNode command = jsonMapper.createObjectNode();
+        command.set("form", jsonMapper.readTree(formDefinition));
+        command.set("data", jsonMapper.readTree(data));
+        command.put("operation", operation);
+        command.put("resourcePath", toSafePath(customComponentsDir));
+        return command.toString();
+    }
+
+    private String toSafePath(String customComponentsDir) {
+        return customComponentsDir.replaceAll("\\\\", "\\\\\\\\");
     }
 
 }
