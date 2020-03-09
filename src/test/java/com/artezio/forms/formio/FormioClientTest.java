@@ -37,7 +37,8 @@ import java.util.stream.StreamSupport;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
 @RunWith(PowerMockRunner.class)
@@ -64,9 +65,6 @@ public class FormioClientTest {
     @InjectMocks
     private FormioClient formioClient = new FormioClient();
     private ObjectMapper jsonMapper = new ObjectMapper();
-
-    public FormioClientTest() throws IOException {
-    }
 
     @BeforeClass
     public static void createTestTmpDir() throws NoSuchFieldException, IllegalAccessException {

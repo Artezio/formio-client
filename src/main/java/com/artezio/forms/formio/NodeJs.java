@@ -1,6 +1,6 @@
 package com.artezio.forms.formio;
 
-import com.artezio.forms.formio.exceptions.FormioProcessorException;
+import com.artezio.forms.formio.exceptions.NodeJsException;
 
 import java.io.*;
 import java.nio.CharBuffer;
@@ -15,7 +15,7 @@ public class NodeJs {
         try {
             nodeJs = new ProcessBuilder("node", "-e", script).start();
         } catch (IOException e) {
-            throw new RuntimeException("Could not start NodeJs process.", e);
+            throw new NodeJsException("Could not start NodeJs process", e);
         }
     }
 
@@ -26,7 +26,7 @@ public class NodeJs {
             checkErrors(standardStreamsData);
             return standardStreamsData.outData;
         } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Error while reading NodeJs process stream.", e);
+            throw new NodeJsException("Error while reading standard streams", e);
         }
     }
 
@@ -37,35 +37,54 @@ public class NodeJs {
         executor.shutdown();
         boolean taskExecutionCompleted = executor.awaitTermination(30, TimeUnit.SECONDS);
         if (!taskExecutionCompleted) {
-            throw new FormioProcessorException("Reading from the process standard streams has timed out.");
+            throw new NodeJsException("Reading from standard streams has timed out");
         }
         return new StandardStreamsData(stdoutData.get(), stderrData.get());
     }
 
     private String read(InputStream inputStream) throws IOException {
-        try(Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
-            StringBuilder stringBuilder = new StringBuilder();
-            int bufferSize = 8192;
-            CharBuffer buffer = CharBuffer.allocate(bufferSize);
-            while (reader.read(buffer) > 0) {
-                buffer.flip();
-                stringBuilder.append(buffer);
+        final char EOT = '\u0004';
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+        StringBuilder stringBuilder = new StringBuilder();
+        int bufferSize = 8192;
+        CharBuffer buffer = CharBuffer.allocate(bufferSize);
+        char lastChar = 0;
+        while (lastChar != EOT) {
+            reader.read(buffer);
+            lastChar = getLastChar(buffer);
+            if (!buffer.hasRemaining() || lastChar == EOT) {
+                stringBuilder.append(readData(buffer));
             }
-            return stringBuilder.toString();
         }
+        return stringBuilder.substring(0, stringBuilder.length() - 1);
+    }
+
+    private String readData(CharBuffer buffer) {
+        buffer.flip();
+        String result = buffer.toString();
+        buffer.clear();
+        return result;
+    }
+
+    private char getLastChar(CharBuffer buffer) {
+        int bufferPosition = buffer.position();
+        int bufferLimit = buffer.limit();
+        char lastChar = buffer.flip().get(bufferPosition - 1);
+        buffer.position(bufferPosition);
+        buffer.limit(bufferLimit);
+        return lastChar;
     }
 
     private void writeToStandardStream(String data) throws IOException {
-        try (BufferedOutputStream outputStream = (BufferedOutputStream) nodeJs.getOutputStream()) {
-            outputStream.write(data.getBytes(StandardCharsets.UTF_8));
-            outputStream.flush();
-        }
+        BufferedOutputStream outputStream = (BufferedOutputStream) nodeJs.getOutputStream();
+        outputStream.write(data.getBytes());
+        outputStream.flush();
     }
 
     private void checkErrors(StandardStreamsData standardStreamsData) {
         String errorData = standardStreamsData.errorData;
         if (!errorData.isEmpty()) {
-            throw new FormioProcessorException(errorData);
+            throw new NodeJsException(errorData);
         }
     }
 

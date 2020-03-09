@@ -68,7 +68,7 @@ public class FormioClient implements FormClient {
                     ? path
                     : Files.createDirectory(path);
         } catch (IOException e) {
-            throw new RuntimeException("Error while creating a directory", e);
+            throw new RuntimeException("Error while creating formio temp directory", e);
         }
     }
     private static final String SCRIPT;
@@ -86,9 +86,6 @@ public class FormioClient implements FormClient {
     @Inject
     private FileAttributeConverter fileAttributeConverter;
 
-    public FormioClient() throws IOException {
-    }
-
     @Override
     public String getFormWithData(String formKey, ObjectNode taskVariables, ResourceLoader resourceLoader) {
         try {
@@ -98,7 +95,7 @@ public class FormioClient implements FormClient {
             ((ObjectNode) formDefinition).set("data", data);
             return formDefinition.toString();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to get a form.", e);
+            throw new RuntimeException("Failed to get form: '" + formKey + "'", e);
         }
     }
 
@@ -112,7 +109,7 @@ public class FormioClient implements FormClient {
             ((ObjectNode) formDefinition).set("data", data);
             return formDefinition.toString();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to get a form.", e);
+            throw new RuntimeException("Failed to get form: '" + formKey + "'", e);
         }
     }
 
