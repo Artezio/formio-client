@@ -11,7 +11,9 @@ module.exports = function getCommand(operation, data) {
         case OPERATION.VALIDATE: {
             return new ValidateCommand(data);
         }
-        case OPERATION.PING:
+        case OPERATION.PING: {
+            return new PingCommand(data);
+        }
         default: {
             return new PingCommand(data);
         }

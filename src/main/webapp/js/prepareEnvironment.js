@@ -1,5 +1,6 @@
 require('./initJsDomGlobal');
 const registerCustomComponents = require('./registerCustomComponents');
+const process = require('process');
 
 process.stdin.setEncoding('utf8');
 

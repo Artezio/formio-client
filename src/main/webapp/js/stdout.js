@@ -1,3 +1,5 @@
+const { EOT } = require('./constants');
+
 let instance;
 
 class Stdout {
@@ -9,15 +11,18 @@ class Stdout {
     }
 
     static getInstance() {
-        return instance && new Stdout();
+        if (instance) {
+            return instance;
+        }
+        return new Stdout();
     }
 
     send(data) {
-        console.info(data);
+        process.stdout.write(data + EOT);
     }
 
     sendError(err) {
-        console.error(err);
+        process.stderr.write(err + EOT);
     }
 }
 

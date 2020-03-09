@@ -1,6 +1,6 @@
 const cleanUpSubmission = require('../cleanUpSubmission');
 const Stdout = require('../stdout');
-const validateSubmission = require('./validateSubmission');
+const validateSubmission = require('../validateSubmission');
 
 const stdout = Stdout.getInstance();
 
@@ -14,8 +14,15 @@ class ValidateCommand {
         const submission = { data: this.data };
         const cleanSubmission = cleanUpSubmission(this.form, submission);
         validateSubmission(this.form, cleanSubmission)
-            .then(result => stdout.send(result))
-            .catch(err => stdout.sendError(err))
+            .then(result => {
+                try {
+                    result = JSON.stringify(result);
+                    stdout.send(result);
+                } catch (err) {
+                    stdout.sendError(err.toString());
+                }
+            })
+            .catch(err => stdout.sendError(err.toString()))
     }
 }
 

@@ -12,8 +12,13 @@ class CleanupCommand {
     execute() {
         const submission = { data: this.data };
         const cleanSubmission = cleanUpSubmission(this.form, submission);
-        const result = cleanSubmission.data;
-        stdout.send(result);
+        let result = cleanSubmission.data;
+        try {
+            result = JSON.stringify(result);
+            stdout.send(result);
+        } catch (err) {
+            stdout.sendError(err.toString());
+        }
     }
 }
 

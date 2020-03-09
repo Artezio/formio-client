@@ -1,12 +1,13 @@
 const path = require('path');
 
-const externalLibs = ['jsdom-global', 'formiojs', 'fs', 'path'];
+const externalLibs = ['jsdom-global', 'formiojs', 'fs', 'path', 'process', 'readline'];
 
 module.exports = {
-  entry: 'index.js',
+  entry: './index.js',
   output: {
-    path: path.resolve(__dirname, './/..//..//resources/formio-scripts'),
-    chunkFilename: 'index.js'
+    // path: path.resolve(__dirname, './/..//..//resources/formio-scripts'),
+    path: path.resolve(__dirname, './dist'),
+    filename: './index.js'
   },
   externals: [
     function (context, request, callback) {
@@ -16,9 +17,11 @@ module.exports = {
       })) {
         return callback(null, 'commonjs ' + request);
       }
-      
+
       callback();
     }
   ],
-  mode: 'production'
+  mode: 'production',
+  // mode: 'development',
+  // devtool: 'source-map'
 }

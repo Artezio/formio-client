@@ -1,11 +1,24 @@
 require('./prepareEnvironment');
-const CommandFactory = require('./commandFactory');
+const getCommand = require('./getCommand');
+const process = require('process');
+// var readline = require('readline');
 
-const commandFactory = new CommandFactory();
+// var rl = readline.createInterface({
+//     input: process.stdin,
+//     output: process.stdout,
+// });
+
+// rl.on('line', handleStdin);
 
 function handleStdin(data) {
-    const command = commandFactory.getCommand(data.operation);
+    data = data.toString();
+    data = JSON.parse(data);
+    const command = getCommand(data.operation, data);
     command.execute();
 }
 
 process.stdin.on('data', handleStdin);
+
+// data = require('./testData.dev');
+// const command = getCommand(data.operation, data);
+// command.execute();
