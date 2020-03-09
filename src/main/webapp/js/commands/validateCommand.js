@@ -1,10 +1,11 @@
 const cleanUpSubmission = require('../cleanUpSubmission');
 const Stdout = require('../stdout');
 const validateSubmission = require('../validateSubmission');
+const Command = require('./command');
 
 const stdout = Stdout.getInstance();
 
-class ValidateCommand {
+class ValidateCommand extends Command {
     constructor({ form, data }) {
         this.data = data;
         this.form = form;
@@ -13,7 +14,7 @@ class ValidateCommand {
     execute() {
         const submission = { data: this.data };
         const cleanSubmission = cleanUpSubmission(this.form, submission);
-        validateSubmission(this.form, cleanSubmission)
+        return validateSubmission(this.form, cleanSubmission)
             .then(result => {
                 try {
                     result = JSON.stringify(result);

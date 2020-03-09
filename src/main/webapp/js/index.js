@@ -1,20 +1,16 @@
 require('./prepareEnvironment');
 const getCommand = require('./getCommand');
 const process = require('process');
-// var readline = require('readline');
+const Stdout = require('./stdout');
 
-// var rl = readline.createInterface({
-//     input: process.stdin,
-//     output: process.stdout,
-// });
-
-// rl.on('line', handleStdin);
+const stdout = Stdout.getInstance();
 
 function handleStdin(data) {
     data = data.toString();
     data = JSON.parse(data);
     const command = getCommand(data.operation, data);
-    command.execute();
+    command.execute()
+        .then(stdout.finally())
 }
 
 process.stdin.on('data', handleStdin);

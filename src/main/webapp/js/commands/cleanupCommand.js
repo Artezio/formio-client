@@ -1,9 +1,10 @@
 const cleanUpSubmission = require('../cleanUpSubmission');
 const Stdout = require('../stdout');
+const Command = require('./command');
 
 const stdout = Stdout.getInstance();
 
-class CleanupCommand {
+class CleanupCommand extends Command {
     constructor({ form, data }) {
         this.data = data;
         this.form = form;
@@ -18,6 +19,8 @@ class CleanupCommand {
             stdout.send(result);
         } catch (err) {
             stdout.sendError(err.toString());
+        } finally {
+            return Promise.resolve();
         }
     }
 }

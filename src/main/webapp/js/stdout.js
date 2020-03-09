@@ -1,4 +1,5 @@
 const { EOT } = require('./constants');
+const process = require('process');
 
 let instance;
 
@@ -18,11 +19,16 @@ class Stdout {
     }
 
     send(data) {
-        process.stdout.write(data + EOT);
+        process.stdout.write(data);
     }
 
     sendError(err) {
-        process.stderr.write(err + EOT);
+        process.stderr.write(err);
+    }
+
+    finally() {
+        process.stdout.write(EOT);
+        process.stderr.write(EOT);
     }
 }
 
