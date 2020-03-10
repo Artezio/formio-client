@@ -12,6 +12,7 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}\\index.js",
+            "args": ["C:\\Users\\dyakovenko\\Documents\\tmp"]
         },
         {
             "type": "node",

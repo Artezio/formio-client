@@ -1,7 +1,7 @@
 exports.OPERATION = {
     CLEANUP: 'cleanup',
     VALIDATE: 'validate',
-    PING: 'ping'/// уточнить!
+    PING: 'ping'
 }
 
 exports.PING_MESSAGE = 'OK';

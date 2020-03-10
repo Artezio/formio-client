@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "build": "webpack",
-    "rollup": "rollup -c ./rollup.config.js"
+    "test": "jest"
   },
   "dependencies": {
     "formiojs": "^4.8.0-beta.9",
@@ -20,6 +20,7 @@
     "@babel/polyfill": "^7.7.0",
     "@babel/preset-env": "^7.7.6",
     "babel-loader": "^8.0.6",
+    "jest": "^25.1.0",
     "webpack": "^4.41.2",
     "webpack-cli": "^3.3.10"
   }

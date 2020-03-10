@@ -6,7 +6,9 @@ const Command = require('./command');
 const stdout = Stdout.getInstance();
 
 class ValidateCommand extends Command {
-    constructor({ form, data }) {
+    constructor(args = {}) {
+        const { form, data } = args;
+        super({ form, data });
         this.data = data;
         this.form = form;
     }
@@ -23,7 +25,14 @@ class ValidateCommand extends Command {
                     stdout.sendError(err.toString());
                 }
             })
-            .catch(err => stdout.sendError(err.toString()))
+            .catch(error => {
+                try {
+                    error = JSON.stringify(error);
+                    stdout.sendError(error);
+                } catch (err) {
+                    stdout.sendError(err.toString());
+                }
+            })
     }
 }
 

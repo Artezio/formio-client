@@ -5,7 +5,9 @@ const Command = require('./command');
 const stdout = Stdout.getInstance();
 
 class CleanupCommand extends Command {
-    constructor({ form, data }) {
+    constructor(args = {}) {
+        const { form, data } = args;
+        super({ form, data });
         this.data = data;
         this.form = form;
     }

@@ -10,11 +10,11 @@ function handleStdin(data) {
     data = JSON.parse(data);
     const command = getCommand(data.operation, data);
     command.execute()
-        .then(stdout.finally())
+        .then(() => stdout.finally())
 }
 
 process.stdin.on('data', handleStdin);
 
-// data = require('./testData.dev');
+// data = require('./test.dev');
 // const command = getCommand(data.operation, data);
-// command.execute();
+// command.execute().then(() => stdout.finally())
