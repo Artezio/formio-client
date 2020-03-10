@@ -71,18 +71,17 @@ public class FormioClient implements FormClient {
             throw new RuntimeException("Error while creating formio temp directory", e);
         }
     }
-    private static final String SCRIPT;
+    private static final String FORMIO_SCRIPT;
     static {
         String scriptPath = "formio-scripts/formio.js";
-        try {
-            URL resourceUrl = FormioClient.class.getClassLoader().getResource(scriptPath);
-            SCRIPT = Files.readString(Path.of(resourceUrl.toURI()), StandardCharsets.UTF_8);
-        } catch (IOException | URISyntaxException ex) {
+        try (InputStream resource = FormioClient.class.getClassLoader().getResourceAsStream(scriptPath)) {
+            FORMIO_SCRIPT = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException ex) {
             throw new RuntimeException("Could not load script: '" + scriptPath + "'", ex);
         }
     }
 
-    private NodeJs nodeJs = new NodeJs(SCRIPT);
+    private NodeJs nodeJs = new NodeJs(FORMIO_SCRIPT);
     @Inject
     private FileAttributeConverter fileAttributeConverter;
 
