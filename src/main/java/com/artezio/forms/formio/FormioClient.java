@@ -3,6 +3,7 @@ package com.artezio.forms.formio;
 import com.artezio.bpm.resources.ResourceLoader;
 import com.artezio.forms.FormClient;
 import com.artezio.forms.formio.exceptions.FormValidationException;
+import com.artezio.forms.formio.nodejs.NodeJsExecutor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,19 +49,19 @@ import static java.util.Arrays.asList;
 public class FormioClient implements FormClient {
 
     private static final Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
-    private final static Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
-    private final static Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, String> FORM_RESOURCES_DIR_CACHE = new ConcurrentHashMap<>();
-    private final static String VALIDATION_OPERATION_NAME = "validate";
-    private final static String CLEANUP_OPERATION_NAME = "cleanup";
-    private final static String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
-    private final static ObjectMapper JSON_MAPPER = new ObjectMapper()
+    private static final String VALIDATION_OPERATION_NAME = "validate";
+    private static final String CLEANUP_OPERATION_NAME = "cleanup";
+    private static final String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
-    private final static ParseContext JAYWAY_PARSER = JsonPath.using(Configuration.builder()
+    private static final ParseContext JAYWAY_PARSER = JsonPath.using(Configuration.builder()
             .jsonProvider(new JacksonJsonNodeJsonProvider())
             .build());
-    private final static Path FORMIO_TEMP_DIR;
+    private static final Path FORMIO_TEMP_DIR;
     static {
         try {
             Path path = Paths.get(System.getProperty("java.io.tmpdir"), ".formio");
@@ -71,17 +72,17 @@ public class FormioClient implements FormClient {
             throw new RuntimeException("Error while creating formio temp directory", e);
         }
     }
-    private static final String FORMIO_SCRIPT;
+    private static final NodeJsExecutor NODEJS_EXECUTOR;
     static {
-        String scriptPath = "formio-scripts/formio.js";
-        try (InputStream resource = FormioClient.class.getClassLoader().getResourceAsStream(scriptPath)) {
-            FORMIO_SCRIPT = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
+        final String SCRIPT_PATH = "formio-scripts/formio.js";
+        try (InputStream resource = FormioClient.class.getClassLoader().getResourceAsStream(SCRIPT_PATH)) {
+            String formioScript = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
+            NODEJS_EXECUTOR = new NodeJsExecutor(formioScript);
         } catch (IOException ex) {
-            throw new RuntimeException("Could not load script: '" + scriptPath + "'", ex);
+            throw new RuntimeException("Could not load script: '" + SCRIPT_PATH + "'", ex);
         }
     }
 
-    private NodeJs nodeJs = new NodeJs(FORMIO_SCRIPT);
     @Inject
     private FileAttributeConverter fileAttributeConverter;
 
@@ -93,23 +94,14 @@ public class FormioClient implements FormClient {
             JsonNode data = wrapGridData(cleanData, formDefinition);
             ((ObjectNode) formDefinition).set("data", data);
             return formDefinition.toString();
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Failed to get form: '" + formKey + "'", e);
         }
     }
 
     @Override
     public String getFormWithData(String formKey, ObjectNode taskVariables) {
-        try {
-            ResourceLoader resourceLoader = new DefaultResourceLoader();
-            JsonNode formDefinition = getForm(formKey, resourceLoader);
-            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), taskVariables, resourceLoader);
-            JsonNode data = wrapGridData(cleanData, formDefinition);
-            ((ObjectNode) formDefinition).set("data", data);
-            return formDefinition.toString();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to get form: '" + formKey + "'", e);
-        }
+        return getFormWithData(formKey, taskVariables, new DefaultResourceLoader());
     }
 
     @Override
@@ -124,8 +116,7 @@ public class FormioClient implements FormClient {
     @Override
     public String dryValidationAndCleanup(String formKey, ObjectNode submittedVariables,
                                           ObjectNode taskVariables) {
-        ResourceLoader resourceLoader = new DefaultResourceLoader();
-        return dryValidationAndCleanup(formKey, submittedVariables, taskVariables, resourceLoader);
+        return dryValidationAndCleanup(formKey, submittedVariables, taskVariables, new DefaultResourceLoader());
     }
 
     @Override
@@ -139,7 +130,7 @@ public class FormioClient implements FormClient {
             taskVariables = convertFilesInData(formDefinitionJson, taskVariables, fileAttributeConverter::toFormioFile);
             ObjectNode formVariables = (ObjectNode) getFormVariables(formDefinition, submittedVariables, taskVariables);
             String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariables.toString(), formResourcesDirPath);
-            JsonNode validationResult = JSON_MAPPER.readTree(nodeJs.execute(formIoBundle));
+            JsonNode validationResult = getDataFromScriptExecutionResult(NODEJS_EXECUTOR.execute(formIoBundle));
             JsonNode unwrappedCleanData = unwrapGridData(validationResult, formDefinition);
             return convertFilesInData(formDefinitionJson, (ObjectNode) unwrappedCleanData, fileAttributeConverter::toCamundaFile).toString();
         } catch (Exception ex) {
@@ -149,8 +140,7 @@ public class FormioClient implements FormClient {
 
     @Override
     public List<String> getFormVariableNames(String formKey) {
-        DefaultResourceLoader resourceLoader = new DefaultResourceLoader();
-        return getFormVariableNames(formKey, resourceLoader);
+        return getFormVariableNames(formKey, new DefaultResourceLoader());
     }
 
     @Override
@@ -161,6 +151,13 @@ public class FormioClient implements FormClient {
                 .filter(component -> StringUtils.isNotBlank(component.path("key").asText()))
                 .map(component -> component.get("key").asText())
                 .collect(Collectors.toList());
+    }
+
+    private JsonNode getDataFromScriptExecutionResult(String scriptExecutionResult) throws IOException {
+        JsonNode json = JSON_MAPPER.readTree(scriptExecutionResult);
+        return json.has("data")
+                ? json.get("data")
+                : JSON_MAPPER.createObjectNode();
     }
 
     //TODO find the best way to make forms immutable
@@ -184,11 +181,11 @@ public class FormioClient implements FormClient {
         return getForm(formKey, resourceLoader);
     }
 
-    private JsonNode cleanUnusedData(String formDefinition, ObjectNode taskVariables, ResourceLoader resourceLoader) throws IOException {
+    private JsonNode cleanUnusedData(String formDefinition, ObjectNode taskVariables, ResourceLoader resourceLoader) throws Exception {
         taskVariables = convertFilesInData(formDefinition, taskVariables, fileAttributeConverter::toFormioFile);
         String formResourcesDirPath = getFormResourcesDirPath(formDefinition, resourceLoader);
         String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition, taskVariables.toString(), formResourcesDirPath);
-        return JSON_MAPPER.readTree(nodeJs.execute(formIoBundle));
+        return JSON_MAPPER.readTree(NODEJS_EXECUTOR.execute(formIoBundle));
     }
 
     private String toFormIoBundle(String operation, String formDefinition, String data, String customComponentsDir)

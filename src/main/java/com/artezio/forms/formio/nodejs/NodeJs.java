@@ -1,4 +1,4 @@
-package com.artezio.forms.formio;
+package com.artezio.forms.formio.nodejs;
 
 import com.artezio.forms.formio.exceptions.NodeJsException;
 
@@ -11,7 +11,7 @@ public class NodeJs {
 
     private Process nodeJs;
 
-    public NodeJs(String script) {
+    NodeJs(String script) {
         try {
             nodeJs = new ProcessBuilder("node", "-e", script).start();
         } catch (IOException e) {
@@ -88,7 +88,7 @@ public class NodeJs {
         }
     }
 
-    private void shutdown() throws InterruptedException {
+    public void shutdown() throws InterruptedException {
         nodeJs.destroy();
         nodeJs.waitFor(5, TimeUnit.SECONDS);
         if (nodeJs.isAlive()) {
