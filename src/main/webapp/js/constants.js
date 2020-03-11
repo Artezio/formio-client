@@ -1,4 +1,4 @@
-exports.OPERATION = {
+exports.OPERATIONS = {
     CLEANUP: 'cleanup',
     VALIDATE: 'validate',
     PING: 'ping'
