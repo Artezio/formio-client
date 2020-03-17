@@ -33,6 +33,7 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -87,10 +88,10 @@ public class FormioClient implements FormClient {
     private FileAttributeConverter fileAttributeConverter;
 
     @Override
-    public String getFormWithData(String formKey, ObjectNode taskVariables, ResourceLoader resourceLoader) {
+    public String getFormWithData(String formKey, ObjectNode currentVariables, ResourceLoader resourceLoader) {
         try {
             JsonNode formDefinition = getForm(formKey, resourceLoader);
-            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), taskVariables, resourceLoader);
+            JsonNode cleanData = cleanUnusedData(formDefinition.toString(), currentVariables, resourceLoader);
             JsonNode data = wrapGridData(cleanData, formDefinition);
             ((ObjectNode) formDefinition).set("data", data);
             return formDefinition.toString();
@@ -100,8 +101,8 @@ public class FormioClient implements FormClient {
     }
 
     @Override
-    public String getFormWithData(String formKey, ObjectNode taskVariables) {
-        return getFormWithData(formKey, taskVariables, new DefaultResourceLoader());
+    public String getFormWithData(String formKey, ObjectNode currentVariables) {
+        return getFormWithData(formKey, currentVariables, new DefaultResourceLoader());
     }
 
     @Override
@@ -115,27 +116,67 @@ public class FormioClient implements FormClient {
 
     @Override
     public String dryValidationAndCleanup(String formKey, ObjectNode submittedVariables,
-                                          ObjectNode taskVariables) {
-        return dryValidationAndCleanup(formKey, submittedVariables, taskVariables, new DefaultResourceLoader());
+                                          ObjectNode currentVariables) {
+        return dryValidationAndCleanup(formKey, submittedVariables, currentVariables, new DefaultResourceLoader());
     }
 
     @Override
     //TODO refactor
     public String dryValidationAndCleanup(String formKey, ObjectNode submittedVariables,
-                                          ObjectNode taskVariables, ResourceLoader resourceLoader) {
+                                          ObjectNode currentVariables, ResourceLoader resourceLoader) {
         try {
             JsonNode formDefinition = getForm(formKey, resourceLoader);
             String formDefinitionJson = formDefinition.toString();
             String formResourcesDirPath = getFormResourcesDirPath(formDefinitionJson, resourceLoader);
-            taskVariables = convertFilesInData(formDefinitionJson, taskVariables, fileAttributeConverter::toFormioFile);
-            ObjectNode formVariables = (ObjectNode) getFormVariables(formDefinition, submittedVariables, taskVariables);
+            ObjectNode formioFilesContentBuffer = JSON_MAPPER.createObjectNode();
+            FileOperationExecutor fileOperationExecutor = new FileOperationExecutor(formDefinitionJson);
+            currentVariables = fileOperationExecutor.add(getTranformToFormioFileOperation())
+                    .execute(currentVariables);
+            ObjectNode formVariables = (ObjectNode) getFormVariables(formDefinition, submittedVariables, currentVariables);
+            formVariables = fileOperationExecutor.add(getExtractFormioFilesContentOperation(formioFilesContentBuffer))
+                    .execute(formVariables);
             String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariables.toString(), formResourcesDirPath);
             JsonNode validationResult = getDataFromScriptExecutionResult(NODEJS_EXECUTOR.execute(formIoBundle));
-            JsonNode unwrappedCleanData = unwrapGridData(validationResult, formDefinition);
-            return convertFilesInData(formDefinitionJson, (ObjectNode) unwrappedCleanData, fileAttributeConverter::toCamundaFile).toString();
+            JsonNode unwrappedData = unwrapGridData(validationResult, formDefinition);
+            return fileOperationExecutor
+                    .add(getAddFormioFilesContentOperation(formioFilesContentBuffer))
+                    .add(getTransformFromFormioFileOperation())
+                    .execute(unwrappedData).toString();
         } catch (Exception ex) {
             throw new FormValidationException(ex);
         }
+    }
+
+    private BiFunction<String, JsonNode, JsonNode> getExtractFormioFilesContentOperation(ObjectNode filesContentBuffer) {
+        return (fileVariablePath, fileVariableValue) -> {
+            ObjectNode filesContent = extractFormioFilesContent(fileVariableValue);
+            filesContentBuffer.set(fileVariablePath, filesContent);
+            return fileVariableValue;
+        };
+    }
+
+    private BiFunction<String, JsonNode, JsonNode> getAddFormioFilesContentOperation(ObjectNode filesContentBuffer) {
+        return (fileVariableName, fileVariableValue) -> {
+            JsonNode filesContent = filesContentBuffer.get(fileVariableName);
+            addContent(filesContent, fileVariableValue);
+            return fileVariableValue;
+        };
+    }
+
+    private BiFunction<String, JsonNode, JsonNode> getTranformToFormioFileOperation() {
+        return (fileVariablePath, fileVariableValue) ->
+                convertFiles(fileVariableValue, fileAttributeConverter::toFormioFile);
+    }
+
+    private BiFunction<String, JsonNode, JsonNode> getTransformFromFormioFileOperation() {
+        return (fileVariableName, fileVariableValue) ->
+                convertFiles(fileVariableValue, fileAttributeConverter::fromFormioFile);
+    }
+
+    private void addContent(JsonNode source, JsonNode destination) {
+        StreamSupport.stream(destination.spliterator(), false)
+                .map(file -> (ObjectNode) file)
+                .forEach(file -> file.set("url", source.get(file.get("name").asText())));
     }
 
     @Override
@@ -181,11 +222,18 @@ public class FormioClient implements FormClient {
         return getForm(formKey, resourceLoader);
     }
 
-    private JsonNode cleanUnusedData(String formDefinition, ObjectNode taskVariables, ResourceLoader resourceLoader) throws Exception {
-        taskVariables = convertFilesInData(formDefinition, taskVariables, fileAttributeConverter::toFormioFile);
+    private JsonNode cleanUnusedData(String formDefinition, ObjectNode currentVariables, ResourceLoader resourceLoader) throws Exception {
+        ObjectNode fileContentBuffer = JSON_MAPPER.createObjectNode();
+        FileOperationExecutor fileOperationExecutor = new FileOperationExecutor(formDefinition);
+        currentVariables = fileOperationExecutor
+                .add(getTranformToFormioFileOperation())
+                .add(getExtractFormioFilesContentOperation(fileContentBuffer))
+                .execute(currentVariables);
         String formResourcesDirPath = getFormResourcesDirPath(formDefinition, resourceLoader);
-        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition, taskVariables.toString(), formResourcesDirPath);
-        return JSON_MAPPER.readTree(NODEJS_EXECUTOR.execute(formIoBundle));
+        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition, currentVariables.toString(), formResourcesDirPath);
+        JsonNode cleanUpResult = JSON_MAPPER.readTree(NODEJS_EXECUTOR.execute(formIoBundle));
+        return fileOperationExecutor.add(getAddFormioFilesContentOperation(fileContentBuffer))
+                .execute(cleanUpResult);
     }
 
     private String toFormIoBundle(String operation, String formDefinition, String data, String customComponentsDir)
@@ -426,18 +474,18 @@ public class FormioClient implements FormClient {
     }
 
     private JsonNode getFormVariables(JsonNode formDefinition, ObjectNode submittedVariables,
-                                      ObjectNode taskVariables) {
-        return getFormVariables(getChildComponents(formDefinition), submittedVariables, taskVariables);
+                                      ObjectNode currentVariables) {
+        return getFormVariables(getChildComponents(formDefinition), submittedVariables, currentVariables);
     }
 
     private JsonNode getFormVariables(List<JsonNode> formComponents, JsonNode submittedVariables,
-                                      JsonNode taskVariables) {
+                                      JsonNode currentVariables) {
         return Optional.ofNullable(formComponents)
                 .map(Collection::stream)
                 .orElse(Stream.empty())
                 .filter(component -> component.get("input").asBoolean())
                 .filter(component -> StringUtils.isNotBlank(component.get("key").asText()))
-                .map(component -> getFormVariable(component, submittedVariables, taskVariables))
+                .map(component -> getFormVariable(component, submittedVariables, currentVariables))
                 .filter(Objects::nonNull)
                 .collect(
                         JSON_MAPPER::createObjectNode,
@@ -447,31 +495,31 @@ public class FormioClient implements FormClient {
     }
 
     private Map.Entry<String, ? extends JsonNode> getFormVariable(JsonNode component, JsonNode submittedVariables,
-                                                                  JsonNode taskVariables) {
+                                                                  JsonNode currentVariables) {
         if (isContainerComponent(component)) {
-            return getContainerVariable(component, submittedVariables, taskVariables);
+            return getContainerVariable(component, submittedVariables, currentVariables);
         } else if (isArrayComponent(component)) {
-            return getArrayComponentVariable(component, submittedVariables, taskVariables);
+            return getArrayComponentVariable(component, submittedVariables, currentVariables);
         } else {
-            return getSimpleComponentVariable(component, submittedVariables, taskVariables);
+            return getSimpleComponentVariable(component, submittedVariables, currentVariables);
         }
     }
 
     private Map.Entry<String, ? extends JsonNode> getContainerVariable(JsonNode component, JsonNode submittedVariables,
-                                                                       JsonNode taskVariables) {
+                                                                       JsonNode currentVariables) {
         String componentKey = component.get("key").asText();
         submittedVariables = submittedVariables.has(componentKey) ? submittedVariables.get(componentKey) : JSON_MAPPER.createObjectNode();
-        taskVariables = taskVariables.has(componentKey) ? taskVariables.get(componentKey) : JSON_MAPPER.createObjectNode();
-        JsonNode containerValue = getFormVariables(getChildComponents(component), submittedVariables, taskVariables);
+        currentVariables = currentVariables.has(componentKey) ? currentVariables.get(componentKey) : JSON_MAPPER.createObjectNode();
+        JsonNode containerValue = getFormVariables(getChildComponents(component), submittedVariables, currentVariables);
         return containerValue.size() == 0 ? null : new SimpleEntry<>(componentKey, containerValue);
     }
 
     private Map.Entry<String, ArrayNode> getArrayComponentVariable(JsonNode component, JsonNode submittedVariables,
-                                                                   JsonNode taskVariables) {
+                                                                   JsonNode currentVariables) {
         String componentKey = component.get("key").asText();
         ArrayNode containerValue = JSON_MAPPER.createArrayNode();
         JsonNode editableArrayData = submittedVariables.has(componentKey) ? submittedVariables.get(componentKey) : JSON_MAPPER.createObjectNode();
-        JsonNode readOnlyArrayData = taskVariables.has(componentKey) ? taskVariables.get(componentKey) : JSON_MAPPER.createArrayNode();
+        JsonNode readOnlyArrayData = currentVariables.has(componentKey) ? currentVariables.get(componentKey) : JSON_MAPPER.createArrayNode();
         if (editableArrayData != null) {
             for (int i = 0; i < editableArrayData.size(); i++) {
                 JsonNode editableArrayItemData = editableArrayData.get(i);
@@ -497,63 +545,20 @@ public class FormioClient implements FormClient {
         return !component.path("disabled").asBoolean() ? editableDataEntry : readOnlyDataEntry;
     }
 
-    private ObjectNode convertFilesInData(String formDefinition, ObjectNode data, Function<ObjectNode, ObjectNode> converter) {
-        String rootObjectAttributePath = "";
-        return convertFilesInData(rootObjectAttributePath, data, formDefinition, converter);
-    }
-
-    private ObjectNode convertFilesInData(
-            String objectAttributePath,
-            ObjectNode objectVariableAttributes,
-            String formDefinition,
-            Function<ObjectNode, ObjectNode> converter) {
-        ObjectNode convertedObject = JSON_MAPPER.createObjectNode();
-        objectVariableAttributes.fields().forEachRemaining(
-                attribute -> {
-                    JsonNode attributeValue = attribute.getValue();
-                    String attributeName = attribute.getKey();
-                    String attributePath = !objectAttributePath.isEmpty()
-                            ? objectAttributePath + "/" + attributeName
-                            : attributeName;
-                    if (isFileVariable(attributeName, formDefinition)) {
-                        attributeValue = convertFilesInData((ArrayNode) attributeValue, converter);
-                    } else if (attributeValue.isObject()) {
-                        attributeValue = convertFilesInData(attributePath, (ObjectNode) attributeValue, formDefinition, converter);
-                    } else if (attributeValue.isArray()) {
-                        attributeValue = convertFilesInData(attributePath, (ArrayNode) attributeValue, formDefinition, converter);
-                    }
-                    convertedObject.set(attributeName, attributeValue);
-                });
-        return convertedObject;
-    }
-
-    private ArrayNode convertFilesInData(
-            String attributePath,
-            ArrayNode array,
-            String formDefinition,
-            Function<ObjectNode, ObjectNode> converter) {
-        ArrayNode convertedArray = JSON_MAPPER.createArrayNode();
-        StreamSupport.stream(array.spliterator(), false)
-                .map(element -> {
-                    if (element.isObject()) {
-                        return convertFilesInData(attributePath, (ObjectNode) element, formDefinition, converter);
-                    } else if (element.isArray()) {
-                        return convertFilesInData(attributePath + "[*]", (ArrayNode) element, formDefinition, converter);
-                    } else {
-                        return element;
-                    }
-                })
-                .forEach(convertedArray::add);
-        return convertedArray;
-    }
-
-    private ArrayNode convertFilesInData(ArrayNode fileData, Function<ObjectNode, ObjectNode> converter) {
+    private JsonNode convertFiles(JsonNode files, Function<JsonNode, JsonNode> converter) {
         ArrayNode convertedFileData = JSON_MAPPER.createArrayNode();
-        StreamSupport.stream(fileData.spliterator(), false)
-                .map(jsonNode -> (ObjectNode) jsonNode)
+        StreamSupport.stream(files.spliterator(), false)
                 .map(converter)
                 .forEach(convertedFileData::add);
         return convertedFileData;
+    }
+
+    private ObjectNode extractFormioFilesContent(JsonNode files) {
+        ObjectNode filesContentBuffer = JSON_MAPPER.createObjectNode();
+        StreamSupport.stream(files.spliterator(), false)
+                .forEach(file ->
+                        filesContentBuffer.put(file.get("originalName").asText(), ((ObjectNode) file).remove("url").asText()));
+        return filesContentBuffer;
     }
 
     private boolean isFileVariable(String variableName, String formDefinition) {
@@ -601,6 +606,73 @@ public class FormioClient implements FormClient {
         }
         byte[] bytes = source.readAllBytes();
         Files.write(destination, bytes);
+    }
+
+    private class FileOperationExecutor {
+
+        private List<BiFunction<String, JsonNode, JsonNode>> operations = new ArrayList<>();
+        private String formDefinition;
+
+        public FileOperationExecutor(String formDefinition) {
+            this.formDefinition = formDefinition;
+        }
+
+        public FileOperationExecutor add(BiFunction<String, JsonNode, JsonNode> operation) {
+            operations.add(operation);
+            return this;
+        }
+
+        public ObjectNode execute(JsonNode variables) {
+            String rootPath = "";
+            ObjectNode result = execute(rootPath, variables);
+            operations.clear();
+            return result;
+        }
+
+        private ObjectNode execute(String variablePath, JsonNode objectVariable) {
+            ObjectNode result = JSON_MAPPER.createObjectNode();
+            objectVariable.fields().forEachRemaining(
+                    field -> {
+                        String fieldName = field.getKey();
+                        JsonNode fieldValue = field.getValue();
+                        String fieldPath = !variablePath.isEmpty()
+                                ? variablePath + "/" + fieldName
+                                : fieldName;
+                        if (isFileVariable(fieldName, formDefinition)) {
+                            fieldValue = executeOperations(fieldPath, fieldValue);
+                        } else if (fieldValue.isObject()) {
+                            fieldValue = execute(fieldPath, fieldValue);
+                        } else if (fieldValue.isArray()) {
+                            fieldValue = execute(fieldPath, (ArrayNode) fieldValue);
+                        }
+                        result.set(fieldName, fieldValue);
+                    });
+            return result;
+        }
+
+        private ArrayNode execute(String attributePath, ArrayNode array) {
+            ArrayNode result = JSON_MAPPER.createArrayNode();
+            StreamSupport.stream(array.spliterator(), false)
+                    .map(element -> {
+                        if (element.isObject()) {
+                            return execute(attributePath, element);
+                        } else if (element.isArray()) {
+                            return execute(attributePath + "[*]", (ArrayNode) element);
+                        } else {
+                            return element;
+                        }
+                    })
+                    .forEach(result::add);
+            return result;
+        }
+
+        private JsonNode executeOperations(String fileVariablePath, JsonNode fileVariableValue) {
+            for (var operation : operations) {
+                fileVariableValue = operation.apply(fileVariablePath, fileVariableValue);
+            }
+            return fileVariableValue;
+        }
+
     }
 
     private class DefaultResourceLoader implements ResourceLoader {

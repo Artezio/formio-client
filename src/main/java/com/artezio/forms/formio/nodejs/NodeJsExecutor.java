@@ -50,8 +50,8 @@ public class NodeJsExecutor {
             int availableProcessors = Runtime.getRuntime().availableProcessors();
             setMaxTotal(availableProcessors);
             setMaxIdle(availableProcessors);
-            setMinEvictableIdleTimeMillis(Duration.ofMinutes(15).toMillis());
-            setTimeBetweenEvictionRunsMillis(Duration.ofMinutes(10).toMillis());
+            setMinEvictableIdleTimeMillis(Duration.ofMinutes(30).toMillis());
+            setTimeBetweenEvictionRunsMillis(Duration.ofMinutes(5).toMillis());
         }};
     }
 

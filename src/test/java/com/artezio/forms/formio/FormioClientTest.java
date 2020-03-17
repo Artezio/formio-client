@@ -106,7 +106,7 @@ public class FormioClientTest {
 
     @Test
     public void testGetFormWithData_NoDataPassed() throws Exception {
-        String formKey = "forms/testForm.json";
+        String formKey = "forms/formWithFile.json";
         ObjectNode taskVariables = jsonMapper.createObjectNode();
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
@@ -142,11 +142,67 @@ public class FormioClientTest {
     }
 
     @Test
+    public void testGetFormWithData_DataWithFilePassed() throws Exception {
+        String formKey = "forms/formWithFile.json";
+        ObjectNode currentVariables = jsonMapper.createObjectNode();
+        ArrayNode fileVariable = currentVariables.putArray("testFile");
+        ObjectNode formioFile = jsonMapper.createObjectNode();
+        formioFile.put("type", "text/plain");
+        formioFile.put("name", "test.txt");
+        formioFile.put("originalName", "test.txt");
+        formioFile.put("size", 4);
+        formioFile.put("url", "data:text/plain;base64,ZGF0YQ==");
+        formioFile.put("storage", "base64");
+        ObjectNode file = fileVariable.addObject();
+        file.put("filename", "test.txt");
+        file.put("url", "data:text/plain;base64,ZGF0YQ==");
+        file.put("size", 4);
+        file.put("mimeType", "text/plain");
+        ObjectNode currentVariablesWithFormioFiles = currentVariables.deepCopy();
+        ((ArrayNode) currentVariablesWithFormioFiles.get("testFile")).set(0, formioFile);
+        ((ObjectNode) currentVariablesWithFormioFiles.get("testFile").get(0)).remove("url");
+        InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
+        InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
+        JsonNode formDefinition = jsonMapper.readTree(is);
+        String formDefinitionJson = formDefinition.toString();
+        ObjectNode cleanupResult = jsonMapper.createObjectNode();
+        cleanupResult.putArray("testFile").addObject().setAll(formioFile);
+        ((ObjectNode) cleanupResult.get("testFile").get(0)).remove("url");
+        JsonNode expected = formDefinition.deepCopy();
+        ((ObjectNode) expected).set("data", cleanupResult.deepCopy());
+        ((ObjectNode) expected.get("data").get("testFile").get(0)).put("url", "data:text/plain;base64,ZGF0YQ==");
+        String customComponent1Name = "component.js";
+        String customComponent2Name = "texteditor.js";
+        String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
+        String customComponent1FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent1RelativePath).toString();
+        String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
+        String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
+        String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
+        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinitionJson, currentVariablesWithFormioFiles.toString(), formResourcesDirPath);
+
+        when(resourceLoader.getResource(formKey)).thenReturn(form);
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
+        when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
+        when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(NODEJS_EXECUTOR.execute(formIoBundle)).thenReturn(cleanupResult.toString());
+
+        String actual = formioClient.getFormWithData(formKey, currentVariables, resourceLoader);
+
+        assertEquals(expected.toString(), actual);
+        File formResourcesDir = new File(formResourcesDirPath);
+        assertTrue(formResourcesDir.exists());
+        File customComponentsDir = formResourcesDir.listFiles()[0];
+        assertEquals("custom-components", customComponentsDir.getName());
+        assertEquals(2, customComponentsDir.listFiles().length);
+        FileUtils.deleteDirectory(formResourcesDir);
+    }
+
+    @Test
     //TODO Fix
     // Instead of exact value of formIoBundle anyString() is passed into 'NODEJS_EXECUTOR.execute()' scenario
     // because of the problem with file conversion
     public void testGetFormWithData_ExistentDataPassed() throws Exception {
-        String formKey = "forms/testForm.json";
+        String formKey = "forms/formWithFile.json";
         ObjectNode taskData = jsonMapper.createObjectNode();
         ArrayNode taskFile = getCamundaFileData(formKey, "application/json");
         taskData.set("testFile", taskFile);
@@ -201,7 +257,7 @@ public class FormioClientTest {
     // Instead of exact value of formIoBundle anyString() is passed into 'NODEJS_EXECUTOR.execute()' scenario
     // because of the problem with file conversion
     public void testGetFormWithData_NonexistentDataPassed() throws Exception {
-        String formKey = "forms/testForm.json";
+        String formKey = "forms/formWithFile.json";
         ObjectNode taskVariables = jsonMapper.createObjectNode();
         taskVariables.set("testFile", getCamundaFileData(formKey, "application/json"));
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
@@ -238,8 +294,8 @@ public class FormioClientTest {
     }
 
     @Test
-    public void dryValidationAndCleanupTest_NoDataPassed() throws Exception {
-        String formKey = "forms/testForm.json";
+    public void testDryValidationAndCleanup_NoDataPassed() throws Exception {
+        String formKey = "forms/formWithFile.json";
         ObjectNode submittedVariables = jsonMapper.createObjectNode();
         ObjectNode taskVariables = jsonMapper.createObjectNode();
         String formVariables = "{}";
@@ -277,7 +333,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void dryValidationAndCleanupTest_ValidDataPassed() throws Exception {
+    public void testDryValidationAndCleanup_ValidDataPassed() throws Exception {
         String formKey = "forms/test.json";
         ObjectNode taskVariables = jsonMapper.createObjectNode();
         ObjectNode submittedVariables = jsonMapper.createObjectNode();
@@ -320,7 +376,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void dryValidationAndCleanupTest_ValidDataWithChangedReadOnlyVariablePassed() throws Exception {
+    public void testDryValidationAndCleanup_ValidDataWithChangedReadOnlyVariablePassed() throws Exception {
         String formKey = "forms/test.json";
         ObjectNode taskVariables = jsonMapper.createObjectNode();
         String textVarName = "text";
@@ -368,9 +424,66 @@ public class FormioClientTest {
         FileUtils.deleteDirectory(formResourcesDir);
     }
 
+    @Test
+    public void testDryValidationAndCleanup_DataWithFilePassed() throws Exception {
+        String formKey = "forms/formWithFile.json";
+        ObjectNode currentVariables = jsonMapper.createObjectNode();
+        ObjectNode submittedVariables = jsonMapper.createObjectNode();
+        ArrayNode fileVariable = submittedVariables.putArray("testFile");
+        ObjectNode formioFile = fileVariable.addObject();
+        formioFile.put("name", "test.txt");
+        formioFile.put("originalName", "test.txt");
+        formioFile.put("size", 4);
+        formioFile.put("type", "text/plain");
+        formioFile.put("url", "data:text/plain;base64,ZGF0YQ==");
+        formioFile.put("storage", "base64");
+        ObjectNode expectedFile = jsonMapper.createObjectNode();
+        expectedFile.put("filename", "test.txt");
+        expectedFile.put("url", "data:text/plain;base64,ZGF0YQ==");
+        expectedFile.put("size", 4);
+        expectedFile.put("mimeType", "text/plain");
+        ObjectNode formVariables = jsonMapper.createObjectNode();
+        formVariables.putArray("testFile").addObject().setAll(formioFile.deepCopy());
+        ((ObjectNode) formVariables.get("testFile").get(0)).remove("url");
+        InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
+        InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
+        JsonNode formDefinition = jsonMapper.readTree(is);
+        String formDefinitionJson = formDefinition.toString();
+        ObjectNode validationResult = jsonMapper.createObjectNode();
+        ArrayNode validationResultFile = validationResult.putObject("data").putArray("testFile");
+        validationResultFile.addObject().setAll(formioFile);
+        ((ObjectNode) validationResultFile.get(0)).remove("url");
+        ObjectNode expected = jsonMapper.createObjectNode();
+        expected.putArray("testFile").add(expectedFile);
+        String customComponent1Name = "component.js";
+        String customComponent2Name = "texteditor.js";
+        String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
+        String customComponent1FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent1RelativePath).toString();
+        String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
+        String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
+        String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
+        String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariables.toString(), formResourcesDirPath);
+
+        when(resourceLoader.getResource(formKey)).thenReturn(form);
+        when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
+        when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
+        when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        when(NODEJS_EXECUTOR.execute(formIoBundle)).thenReturn(validationResult.toString());
+
+        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
+
+        assertEquals(expected.toString(), actual);
+        File formResourcesDir = new File(formResourcesDirPath);
+        assertTrue(formResourcesDir.exists());
+        File customComponentsDir = formResourcesDir.listFiles()[0];
+        assertEquals("custom-components", customComponentsDir.getName());
+        assertEquals(2, customComponentsDir.listFiles().length);
+        FileUtils.deleteDirectory(formResourcesDir);
+    }
+
     @Test(expected = FormValidationException.class)
-    public void dryValidationAndCleanupTest_InvalidDataPassed() throws Exception {
-        String formKey = "forms/testForm.json";
+    public void testDryValidationAndCleanup_InvalidDataPassed() throws Exception {
+        String formKey = "forms/formWithFile.json";
         ObjectNode currentVariables = jsonMapper.createObjectNode();
         ObjectNode submittedVariables = jsonMapper.createObjectNode();
         ObjectNode formVariables = jsonMapper.createObjectNode();
@@ -432,7 +545,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException, URISyntaxException {
+    public void testShouldProcessSubmittedData_SubmissionStateIsSubmitted() throws IOException, URISyntaxException {
         String formKey = "forms/formWithState.json";
         String submissionState = "submitted";
         FileInputStream form = new FileInputStream(getFile(formKey));
@@ -444,7 +557,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException, URISyntaxException {
+    public void testShouldProcessSubmittedData_SubmissionStateIsCanceled() throws IOException, URISyntaxException {
         String formKey = "forms/formWithState.json";
         String submissionState = "canceled";
         FileInputStream form = new FileInputStream(getFile(formKey));
@@ -456,7 +569,7 @@ public class FormioClientTest {
     }
 
     @Test
-    public void shouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException, URISyntaxException {
+    public void testShouldProcessSubmittedData_SkipDataProcessingPropertyNotSet() throws IOException, URISyntaxException {
         String formKey = "forms/formWithState.json";
         String submissionState = "submittedWithoutProperty";
         FileInputStream form = new FileInputStream(getFile(formKey));
