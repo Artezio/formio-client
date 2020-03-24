@@ -1,8 +1,9 @@
 package com.artezio.forms.formio;
 
-import com.artezio.bpm.resources.ResourceLoader;
-import com.artezio.bpm.services.integration.Base64UrlFileStorage;
-import com.artezio.bpm.services.integration.FileStorage;
+import com.artezio.forms.FileConverter;
+import com.artezio.forms.FileStorage;
+import com.artezio.forms.FileStorageEntity;
+import com.artezio.forms.ResourceLoader;
 import com.artezio.forms.formio.exceptions.FormValidationException;
 import com.artezio.forms.formio.nodejs.NodeJsExecutor;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,19 +12,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import junitx.framework.ListAssert;
 import org.apache.commons.io.FileUtils;
-import org.camunda.bpm.BpmPlatform;
-import org.camunda.bpm.ProcessEngineService;
-import org.camunda.bpm.engine.ProcessEngine;
-import org.camunda.bpm.engine.RepositoryService;
-import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.mockito.junit.MockitoJUnitRunner;
 
 import java.io.*;
 import java.lang.reflect.Field;
@@ -38,13 +31,10 @@ import java.util.stream.StreamSupport;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.mockito.internal.util.reflection.FieldSetter.setField;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(BpmPlatform.class)
-@PowerMockIgnore({"com.sun.org.apache.*", "javax.xml.*", "java.xml.*", "org.xml.*", "org.w3c.dom.*", "javax.management.*"})
+@RunWith(MockitoJUnitRunner.class)
 public class FormioClientTest {
 
     private static final String VALIDATION_OPERATION_NAME = "validate";
@@ -53,17 +43,14 @@ public class FormioClientTest {
     private static final NodeJsExecutor NODEJS_EXECUTOR = mock(NodeJsExecutor.class);
     private static final String PUBLIC_RESOURCES_DIRECTORY = "public";
 
-    @Rule
-    public ProcessEngineRule processEngineRule = new ProcessEngineRule();
-    
-    @Mock
-    private RepositoryService repositoryService;
-    @Mock
-    private ProcessEngine processEngine;
     @Mock
     private ResourceLoader resourceLoader;
+    @Mock
+    private FileConverter fileConverter;
+    @Mock
+    private FileStorage fileStorage;
     @InjectMocks
-    private FormioClient formioClient = new FormioClient();
+    private FormioClient formioClient;
     private ObjectMapper jsonMapper = new ObjectMapper();
 
     @BeforeClass
@@ -74,15 +61,9 @@ public class FormioClientTest {
 
     @Before
     public void setUp() throws Exception {
-        PowerMockito.mockStatic(BpmPlatform.class);
-        processEngine = mock(ProcessEngine.class);
-        FileStorage fileStorage = new Base64UrlFileStorage();
-        FileAttributeConverter fileAttributeConverter = new FileAttributeConverter(fileStorage);
-        setField(formioClient, FormioClient.class.getDeclaredField("fileAttributeConverter"), fileAttributeConverter);
-        ProcessEngineService mockProcessEngineService = mock(ProcessEngineService.class);
-        PowerMockito.doReturn(mockProcessEngineService).when(BpmPlatform.class, "getProcessEngineService");
-        when(mockProcessEngineService.getProcessEngine(anyString())).thenReturn(processEngine);
-        when(processEngine.getRepositoryService()).thenReturn(repositoryService);
+        formioClient = new FormioClient(fileConverter);
+        FileConverter fileConverter = new DefaultFileConverter();
+        setField(formioClient, FormioClient.class.getDeclaredField("fileConverter"), fileConverter);
     }
 
     @After
@@ -107,7 +88,7 @@ public class FormioClientTest {
     @Test
     public void testGetFormWithData_NoDataPassed() throws Exception {
         String formKey = "forms/formWithFile.json";
-        ObjectNode taskVariables = jsonMapper.createObjectNode();
+        ObjectNode currentVariables = jsonMapper.createObjectNode();
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
@@ -122,7 +103,7 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
-        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinitionJson, taskVariables.toString(), formResourcesDirPath);
+        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinitionJson, currentVariables.toString(), formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
@@ -130,7 +111,7 @@ public class FormioClientTest {
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(NODEJS_EXECUTOR.execute(formIoBundle)).thenReturn(cleanupResult.toString());
 
-        String actual = formioClient.getFormWithData(formKey, taskVariables, resourceLoader);
+        String actual = formioClient.getFormWithData(formKey, currentVariables, resourceLoader, fileStorage);
 
         assertEquals(expected.toString(), actual);
         File formResourcesDir = new File(formResourcesDirPath);
@@ -142,6 +123,7 @@ public class FormioClientTest {
     }
 
     @Test
+    //TODO //Replace anyString() with formioBundle
     public void testGetFormWithData_DataWithFilePassed() throws Exception {
         String formKey = "forms/formWithFile.json";
         ObjectNode currentVariables = jsonMapper.createObjectNode();
@@ -154,10 +136,7 @@ public class FormioClientTest {
         formioFile.put("url", "data:text/plain;base64,ZGF0YQ==");
         formioFile.put("storage", "base64");
         ObjectNode file = fileVariable.addObject();
-        file.put("filename", "test.txt");
-        file.put("url", "data:text/plain;base64,ZGF0YQ==");
-        file.put("size", 4);
-        file.put("mimeType", "text/plain");
+        file.setAll(formioFile);
         ObjectNode currentVariablesWithFormioFiles = currentVariables.deepCopy();
         ((ArrayNode) currentVariablesWithFormioFiles.get("testFile")).set(0, formioFile);
         ((ObjectNode) currentVariablesWithFormioFiles.get("testFile").get(0)).remove("url");
@@ -167,10 +146,8 @@ public class FormioClientTest {
         String formDefinitionJson = formDefinition.toString();
         ObjectNode cleanupResult = jsonMapper.createObjectNode();
         cleanupResult.putArray("testFile").addObject().setAll(formioFile);
-        ((ObjectNode) cleanupResult.get("testFile").get(0)).remove("url");
         JsonNode expected = formDefinition.deepCopy();
         ((ObjectNode) expected).set("data", cleanupResult.deepCopy());
-        ((ObjectNode) expected.get("data").get("testFile").get(0)).put("url", "data:text/plain;base64,ZGF0YQ==");
         String customComponent1Name = "component.js";
         String customComponent2Name = "texteditor.js";
         String customComponent1RelativePath = Paths.get("custom-components", customComponent1Name).toString();
@@ -184,9 +161,9 @@ public class FormioClientTest {
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
-        when(NODEJS_EXECUTOR.execute(formIoBundle)).thenReturn(cleanupResult.toString());
+        when(NODEJS_EXECUTOR.execute(anyString())).thenReturn(cleanupResult.toString());
 
-        String actual = formioClient.getFormWithData(formKey, currentVariables, resourceLoader);
+        String actual = formioClient.getFormWithData(formKey, currentVariables, resourceLoader, fileStorage);
 
         assertEquals(expected.toString(), actual);
         File formResourcesDir = new File(formResourcesDirPath);
@@ -198,17 +175,15 @@ public class FormioClientTest {
     }
 
     @Test
-    //TODO Fix
-    // Instead of exact value of formIoBundle anyString() is passed into 'NODEJS_EXECUTOR.execute()' scenario
-    // because of the problem with file conversion
+    //TODO Replace anyString() with formioBundle
     public void testGetFormWithData_ExistentDataPassed() throws Exception {
         String formKey = "forms/formWithFile.json";
-        ObjectNode taskData = jsonMapper.createObjectNode();
-        ArrayNode taskFile = getCamundaFileData(formKey, "application/json");
-        taskData.set("testFile", taskFile);
+        ObjectNode currentVariables = jsonMapper.createObjectNode();
+        ArrayNode file = getFormioFileData(formKey, "application/json");
+        currentVariables.set("testFile", file);
         ObjectNode container = jsonMapper.createObjectNode();
         container.put("containerField", "123");
-        taskData.set("container", container);
+        currentVariables.set("container", container);
         ObjectNode cleanupResult = jsonMapper.createObjectNode();
         cleanupResult.set("testFile", getFormioFileData(formKey, "application/json"));
         ObjectNode cleanupResultContainer = jsonMapper.createObjectNode();
@@ -227,15 +202,16 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
-//        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition.toString(), submissionData.toString(), formResourcesDirPath);
+        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition.toString(), currentVariables.toString(), formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+//        when(fileConverter.toFormioFile(file)).thenReturn(file);
         when(NODEJS_EXECUTOR.execute(anyString())).thenReturn(cleanupResult.toString());
 
-        String actual = formioClient.getFormWithData(formKey, taskData, resourceLoader);
+        String actual = formioClient.getFormWithData(formKey, currentVariables, resourceLoader, fileStorage);
         JsonNode actualJson = jsonMapper.readTree(actual);
 
         assertTrue(actualJson.has("data"));
@@ -253,13 +229,12 @@ public class FormioClientTest {
     }
 
     @Test
-    //TODO Fix
-    // Instead of exact value of formIoBundle anyString() is passed into 'NODEJS_EXECUTOR.execute()' scenario
-    // because of the problem with file conversion
+    //TODO Replace anyString() with formioBundle
     public void testGetFormWithData_NonexistentDataPassed() throws Exception {
         String formKey = "forms/formWithFile.json";
-        ObjectNode taskVariables = jsonMapper.createObjectNode();
-        taskVariables.set("testFile", getCamundaFileData(formKey, "application/json"));
+        ObjectNode currentVariables = jsonMapper.createObjectNode();
+        currentVariables.set("testFile", getFormioFileData(formKey, "application/json"));
+        ((ObjectNode) currentVariables.get("testFile").get(0)).remove("url");
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
@@ -274,7 +249,7 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
-//        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition.toString(), submissionData.toString(), formResourcesDirPath);
+        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition.toString(), currentVariables.toString(), formResourcesDirPath);
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
@@ -282,7 +257,7 @@ public class FormioClientTest {
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(NODEJS_EXECUTOR.execute(anyString())).thenReturn(cleanupResult.toString());
 
-        String actual = formioClient.getFormWithData(formKey, taskVariables, resourceLoader);
+        String actual = formioClient.getFormWithData(formKey, currentVariables, resourceLoader, fileStorage);
 
         assertEquals(expected.toString(), actual);
         File formResourcesDir = new File(formResourcesDirPath);
@@ -297,7 +272,7 @@ public class FormioClientTest {
     public void testDryValidationAndCleanup_NoDataPassed() throws Exception {
         String formKey = "forms/formWithFile.json";
         ObjectNode submittedVariables = jsonMapper.createObjectNode();
-        ObjectNode taskVariables = jsonMapper.createObjectNode();
+        ObjectNode currentVariables = jsonMapper.createObjectNode();
         String formVariables = "{}";
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
@@ -321,9 +296,9 @@ public class FormioClientTest {
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(NODEJS_EXECUTOR.execute(formIoBundle)).thenReturn(validationResult.toString());
 
-        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, taskVariables, resourceLoader);
+        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader, fileStorage);
 
-        assertEquals(jsonMapper.writeValueAsString(taskVariables), actual);
+        assertEquals(jsonMapper.writeValueAsString(currentVariables), actual);
         File formResourcesDir = new File(formResourcesDirPath);
         assertTrue(formResourcesDir.exists());
         File customComponentsDir = formResourcesDir.listFiles()[0];
@@ -335,7 +310,7 @@ public class FormioClientTest {
     @Test
     public void testDryValidationAndCleanup_ValidDataPassed() throws Exception {
         String formKey = "forms/test.json";
-        ObjectNode taskVariables = jsonMapper.createObjectNode();
+        ObjectNode currentVariables = jsonMapper.createObjectNode();
         ObjectNode submittedVariables = jsonMapper.createObjectNode();
         submittedVariables.put("text", "123");
         ObjectNode formVariables = jsonMapper.createObjectNode();
@@ -364,7 +339,7 @@ public class FormioClientTest {
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(NODEJS_EXECUTOR.execute(formIoBundle)).thenReturn(validationResult.toString());
 
-        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, taskVariables, resourceLoader);
+        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader, fileStorage);
 
         assertEquals(jsonMapper.writeValueAsString(submittedVariables), actual);
         File formResourcesDir = new File(formResourcesDirPath);
@@ -378,10 +353,10 @@ public class FormioClientTest {
     @Test
     public void testDryValidationAndCleanup_ValidDataWithChangedReadOnlyVariablePassed() throws Exception {
         String formKey = "forms/test.json";
-        ObjectNode taskVariables = jsonMapper.createObjectNode();
+        ObjectNode currentVariables = jsonMapper.createObjectNode();
         String textVarName = "text";
         String readOnlyVarName = "readOnly";
-        taskVariables.put(readOnlyVarName, "test");
+        currentVariables.put(readOnlyVarName, "test");
         ObjectNode submittedVariables = jsonMapper.createObjectNode();
         submittedVariables.put(readOnlyVarName, "test2");
         submittedVariables.put(textVarName, "123");
@@ -391,7 +366,7 @@ public class FormioClientTest {
         ObjectNode validationResult = jsonMapper.createObjectNode();
         ObjectNode validationResultWrapper = validationResult.putObject("data");
         validationResultWrapper.set(textVarName, submittedVariables.get(textVarName));
-        validationResultWrapper.set(readOnlyVarName, taskVariables.get(readOnlyVarName));
+        validationResultWrapper.set(readOnlyVarName, currentVariables.get(readOnlyVarName));
         ObjectNode data = jsonMapper.createObjectNode();
         data.setAll(expected);
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
@@ -413,7 +388,7 @@ public class FormioClientTest {
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(NODEJS_EXECUTOR.execute(formIoBundle)).thenReturn(validationResult.toString());
 
-        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, taskVariables, resourceLoader);
+        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader, fileStorage);
 
         assertEquals(expected, jsonMapper.readTree(actual));
         File formResourcesDir = new File(formResourcesDirPath);
@@ -435,16 +410,13 @@ public class FormioClientTest {
         formioFile.put("originalName", "test.txt");
         formioFile.put("size", 4);
         formioFile.put("type", "text/plain");
-        formioFile.put("url", "data:text/plain;base64,ZGF0YQ==");
         formioFile.put("storage", "base64");
-        ObjectNode expectedFile = jsonMapper.createObjectNode();
-        expectedFile.put("filename", "test.txt");
-        expectedFile.put("url", "data:text/plain;base64,ZGF0YQ==");
-        expectedFile.put("size", 4);
-        expectedFile.put("mimeType", "text/plain");
+        formioFile.put("url", "data:text/plain;base64,ZGF0YQ==");
+        ObjectNode expectedFile = formioFile.deepCopy();
         ObjectNode formVariables = jsonMapper.createObjectNode();
         formVariables.putArray("testFile").addObject().setAll(formioFile.deepCopy());
-        ((ObjectNode) formVariables.get("testFile").get(0)).remove("url");
+        ObjectNode formVariablesWithoutFileUrls = formVariables.deepCopy();
+        ((ObjectNode) formVariablesWithoutFileUrls.get("testFile").get(0)).remove("url");
         InputStream is = getClass().getClassLoader().getResourceAsStream(formKey);
         InputStream form = getClass().getClassLoader().getResourceAsStream(formKey);
         JsonNode formDefinition = jsonMapper.readTree(is);
@@ -462,17 +434,26 @@ public class FormioClientTest {
         String customComponent2RelativePath = Paths.get("custom-components", customComponent2Name).toString();
         String customComponent2FullPath = Paths.get(PUBLIC_RESOURCES_DIRECTORY, customComponent2RelativePath).toString();
         String formResourcesDirPath = Paths.get(TEST_FORMIO_TMP_DIR.toString(), String.valueOf(formDefinitionJson.hashCode())).toString();
-        String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariables.toString(), formResourcesDirPath);
+        String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariablesWithoutFileUrls.toString(), formResourcesDirPath);
+        String fileVariablePath = "testFile[0]";
+        FormioFileToFileStorageEntityAdapter fileStorageEntity = new FormioFileToFileStorageEntityAdapter(fileVariablePath, formVariables.get("testFile").get(0));
+        Map<String, FileStorageEntity> storage = new HashMap<>();
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.listResourceNames()).thenReturn(asList(customComponent1RelativePath, customComponent2RelativePath));
         when(resourceLoader.getResource(customComponent1RelativePath)).thenReturn(new FileInputStream(getFile(customComponent1FullPath)));
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
+        doAnswer(answer -> {
+            storage.put(((FileStorageEntity)answer.getArgument(0)).getId(), answer.getArgument(0));
+            return null;
+        }).when(fileStorage).store(any(FileStorageEntity.class));
         when(NODEJS_EXECUTOR.execute(formIoBundle)).thenReturn(validationResult.toString());
 
-        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
+        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader, fileStorage);
 
-        assertEquals(expected.toString(), actual);
+        assertEquals(sortObject(expected), sortObject(jsonMapper.readTree(actual)));
+        assertFalse(storage.isEmpty());
+        assertFileStorageEntitiesEquals(fileStorageEntity, storage.get(fileVariablePath));
         File formResourcesDir = new File(formResourcesDirPath);
         assertTrue(formResourcesDir.exists());
         File customComponentsDir = formResourcesDir.listFiles()[0];
@@ -509,9 +490,9 @@ public class FormioClientTest {
         when(resourceLoader.getResource(customComponent2RelativePath)).thenReturn(new FileInputStream(getFile(customComponent2FullPath)));
         when(NODEJS_EXECUTOR.execute(formIoBundle)).thenThrow(FormValidationException.class);
 
-        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader);
+        String actual = formioClient.dryValidationAndCleanup(formKey, submittedVariables, currentVariables, resourceLoader, fileStorage);
 
-        assertEquals(jsonMapper.writeValueAsString(submittedVariables), actual);
+        assertEquals(sortObject(submittedVariables), sortObject(jsonMapper.readTree(actual)));
         File formResourcesDir = new File(formResourcesDirPath);
         assertTrue(formResourcesDir.exists());
         File customComponentsDir = formResourcesDir.listFiles()[0];
@@ -605,7 +586,6 @@ public class FormioClientTest {
         InputStream form = new FileInputStream(getFile(formKey));
         InputStream subform = new FileInputStream(getFile(subformPath));
 
-        when(resourceLoader.getResource(formKey)).thenReturn(form);
         when(resourceLoader.getResource(subformKey)).thenReturn(subform);
 
         JsonNode actual = formioClient.expandSubforms(formDefinition, resourceLoader);
@@ -647,6 +627,15 @@ public class FormioClientTest {
         assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
     }
 
+    private void assertFileStorageEntitiesEquals(FileStorageEntity entity1, FileStorageEntity entity2) throws IOException {
+        assertEquals(entity1.getId(), entity2.getId());
+        assertEquals(entity1.getName(), entity2.getName());
+        assertEquals(entity1.getMimeType(), entity2.getMimeType());
+        assertEquals(entity1.getStorage(), entity2.getStorage());
+        assertEquals(entity1.getUrl(), entity2.getUrl());
+        assertArrayEquals(entity1.getContent().readAllBytes(), entity2.getContent().readAllBytes());
+    }
+
     private static <T> void setFinalField(Class<T> target, String name, Object value)
             throws NoSuchFieldException, IllegalAccessException {
         Field field = target.getDeclaredField(name);
@@ -659,8 +648,8 @@ public class FormioClientTest {
 
     private ArrayNode getFormioFileData(String filename, String mimeType) {
         ArrayNode files = jsonMapper.createArrayNode();
-        ObjectNode file = jsonMapper.createObjectNode();
-        file.put("storage", "base64");
+        ObjectNode file = files.addObject();
+        file.put("type", mimeType);
         file.put("name", filename);
         file.put("originalName", filename);
         byte[] data;
@@ -671,28 +660,8 @@ public class FormioClientTest {
             throw new RuntimeException("Could not load file");
         }
         file.put("size", data.length);
-        file.put("type", mimeType);
+        file.put("storage", "base64");
         file.put("url", String.format("data:%s;base64,%s", mimeType, Base64.getMimeEncoder().encodeToString(data)));
-        files.add(file);
-        return files;
-    }
-
-    private ArrayNode getCamundaFileData(String filename, String mimeType) {
-        ArrayNode files = jsonMapper.createArrayNode();
-        ObjectNode file = jsonMapper.createObjectNode();
-        file.put("name", filename);
-        file.put("filename", filename);
-        byte[] data;
-        try {
-            data = new FileInputStream(getFile(filename)).readAllBytes();
-        } catch (IOException | URISyntaxException e) {
-            e.printStackTrace();
-            throw new RuntimeException("Could not load file");
-        }
-        file.put("size", data.length);
-        file.put("mimeType", mimeType);
-        file.put("url", String.format("data:%s;base64,%s", mimeType, Base64.getMimeEncoder().encodeToString(data)));
-        files.add(file);
         return files;
     }
 

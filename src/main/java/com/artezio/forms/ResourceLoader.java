@@ -1,4 +1,4 @@
-package com.artezio.bpm.resources;
+package com.artezio.forms;
 
 import java.io.InputStream;
 import java.util.List;
