@@ -502,14 +502,28 @@ public class FormioClientTest {
     }
 
     @Test
-    public void testGetFormVariableNames() throws URISyntaxException, FileNotFoundException {
+    public void testGetRootFormVariableNames() throws URISyntaxException, FileNotFoundException {
         String formKey = "forms/formWithMultilevelVariable.json";
         FileInputStream form = new FileInputStream(getFile(PUBLIC_RESOURCES_DIRECTORY + "/" + formKey));
-        List<String> expected = asList("level1", "submit");
+        List<String> expected = asList("variable1", "variable2", "submit");
 
         when(resourceLoader.getResource(formKey)).thenReturn(form);
 
-        List<String> actual = formioClient.getFormVariableNames(formKey, resourceLoader);
+        List<String> actual = formioClient.getRootFormFieldNames(formKey, resourceLoader);
+
+        ListAssert.assertEquals(expected, actual);
+    }
+
+    @Test
+    public void testGetFormVariableNames() throws URISyntaxException, FileNotFoundException {
+        String formKey = "forms/formWithMultilevelVariable.json";
+        FileInputStream form = new FileInputStream(getFile(PUBLIC_RESOURCES_DIRECTORY + "/" + formKey));
+        List<String> expected = asList("variable1", "variable1.variable11", "variable1.variable11.variable111",
+                "variable1.variable11.variable112", "variable2", "variable2.variable21", "submit");
+
+        when(resourceLoader.getResource(formKey)).thenReturn(form);
+
+        List<String> actual = formioClient.getFormFieldPaths(formKey, resourceLoader);
 
         ListAssert.assertEquals(expected, actual);
     }

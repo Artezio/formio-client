@@ -179,18 +179,52 @@ public class FormioClient implements FormClient {
     }
 
     @Override
-    public List<String> getFormVariableNames(String formKey) {
-        return getFormVariableNames(formKey, new DefaultResourceLoader());
+    public List<String> getRootFormFieldNames(String formKey) {
+        return getRootFormFieldNames(formKey, new DefaultResourceLoader());
     }
 
     @Override
-    public List<String> getFormVariableNames(String formKey, ResourceLoader resourceLoader) {
+    public List<String> getRootFormFieldNames(String formKey, ResourceLoader resourceLoader) {
         JsonNode formDefinition = getForm(formKey, resourceLoader);
-        return Optional.of(getChildComponents(formDefinition)).stream().flatMap(Collection::stream)
+        return Optional.of(getChildComponents(formDefinition)).stream()
+                .flatMap(Collection::stream)
                 .filter(component -> component.path("input").asBoolean())
                 .filter(component -> StringUtils.isNotBlank(component.path("key").asText()))
                 .map(component -> component.get("key").asText())
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<String> getFormFieldPaths(String formKey) {
+        return getFormFieldPaths(formKey, new DefaultResourceLoader());
+    }
+
+    @Override
+    public List<String> getFormFieldPaths(String formKey, ResourceLoader resourceLoader) {
+        JsonNode formDefinition = getForm(formKey, resourceLoader);
+        return Optional.of(getChildComponents(formDefinition)).stream()
+                .flatMap(Collection::stream)
+                .filter(component -> component.path("input").asBoolean())
+                .filter(component -> StringUtils.isNotBlank(component.path("key").asText()))
+                .map(this::getComponentTreeNames)
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+    }
+
+    private List<String> getComponentTreeNames(JsonNode component) {
+        List<String> result = new ArrayList<>();
+        String componentName = component.path("key").asText();
+        result.add(componentName);
+        if (!isContainerComponent(component) && !isArrayComponent(component))
+            return result;
+        Optional.of(getChildComponents(component)).stream()
+                .flatMap(Collection::stream)
+                .filter(childComponent -> childComponent.path("input").asBoolean())
+                .filter(childComponent -> StringUtils.isNotBlank(childComponent.path("key").asText()))
+                .map(this::getComponentTreeNames)
+                .flatMap(Collection::stream)
+                .forEach(childComponent -> result.add(String.format("%s.%s", componentName, childComponent)));
+        return result;
     }
 
     private JsonNode getDataFromScriptExecutionResult(String scriptExecutionResult, JsonNode formDefinition) throws IOException {
@@ -372,16 +406,6 @@ public class FormioClient implements FormClient {
                 .flatMap(component -> toStream(component.get("components")))
                 .forEach(nodes::add);
         return nodes;
-    }
-
-    private ObjectNode toFormIoSubmissionData(ObjectNode data) {
-        if (!data.has("data")) {
-            ObjectNode formioData = JSON_MAPPER.createObjectNode();
-            formioData.set("data", data);
-            return formioData;
-        } else {
-            return data;
-        }
     }
 
     private JsonNode unwrapGridData(JsonNode data, JsonNode definition) {

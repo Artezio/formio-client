@@ -15,6 +15,8 @@ public interface FormClient {
     String dryValidationAndCleanup(String formKey, ObjectNode submittedVariables, ObjectNode currentVariables, ResourceLoader resourceLoader, FileStorage fileStorage);
     boolean shouldProcessSubmission(String formKey, String submissionState);
     boolean shouldProcessSubmission(String formKey, String submissionState, ResourceLoader resourceLoader);
-    List<String> getFormVariableNames(String formKey);
-    List<String> getFormVariableNames(String formKey, ResourceLoader resourceLoader);
+    List<String> getRootFormFieldNames(String formKey);
+    List<String> getRootFormFieldNames(String formKey, ResourceLoader resourceLoader);
+    List<String> getFormFieldPaths(String formKey);
+    List<String> getFormFieldPaths(String formKey, ResourceLoader resourceLoader);
 }
