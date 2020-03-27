@@ -1,11 +1,11 @@
 package com.artezio.forms.formio;
 
-import com.artezio.forms.FileConverter;
-import com.artezio.forms.FileStorage;
 import com.artezio.forms.FormClient;
-import com.artezio.forms.ResourceLoader;
+import com.artezio.forms.converters.FileConverter;
 import com.artezio.forms.formio.exceptions.FormValidationException;
 import com.artezio.forms.formio.nodejs.NodeJsExecutor;
+import com.artezio.forms.resources.ResourceLoader;
+import com.artezio.forms.storages.FileStorage;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

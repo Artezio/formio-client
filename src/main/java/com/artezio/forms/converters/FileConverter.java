@@ -1,4 +1,4 @@
-package com.artezio.forms;
+package com.artezio.forms.converters;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,12 +10,60 @@ abstract public class FileConverter {
 
     private final static ObjectMapper JSON_MAPPER = new ObjectMapper();
 
+    /**
+     * Converts formio file to another form.
+     *
+     * @param formioFile Json object of a formio file
+     * @return Json object of result file
+     */
     abstract public JsonNode fromFormioFile(JsonNode formioFile);
+
+    /**
+     * Get size of a file.
+     *
+     * @param file Json object of the file
+     * @return The file size
+     */
     abstract protected int getSize(JsonNode file);
+
+    /**
+     * Get url of a file.
+     *
+     * @param file Json object of the file
+     * @return Url to download the file
+     */
     abstract protected String getUrl(JsonNode file);
+
+    /**
+     * Get name of a file.
+     *
+     * @param file Json object of the file
+     * @return Name of the file
+     */
     abstract protected String getOriginalName(JsonNode file);
+
+    /**
+     * Get unique name of a file (e.g. using GUID).
+     *
+     * @param file Json object of the file
+     * @return Unique name of the file
+     */
     abstract protected String getName(JsonNode file);
+
+    /**
+     * Get mime type of a file.
+     *
+     * @param file Json object of the file
+     * @return Mime type of the file
+     */
     abstract protected String getMimeType(JsonNode file);
+
+    /**
+     * Get storage type of a file.
+     *
+     * @param file Json object of the file
+     * @return Storage type of the file
+     */
     abstract protected String getStorage(JsonNode file);
 
     public JsonNode toFormioFile(JsonNode file) {

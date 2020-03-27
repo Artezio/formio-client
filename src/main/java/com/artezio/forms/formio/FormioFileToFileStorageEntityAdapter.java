@@ -1,7 +1,7 @@
 package com.artezio.forms.formio;
 
-import com.artezio.forms.FileStorageEntity;
 import com.artezio.forms.formio.exceptions.DataUrlSchemeIncorrectFormat;
+import com.artezio.forms.storages.FileStorageEntity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;

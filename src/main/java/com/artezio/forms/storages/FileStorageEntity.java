@@ -1,4 +1,4 @@
-package com.artezio.forms;
+package com.artezio.forms.storages;
 
 import java.io.InputStream;
 
