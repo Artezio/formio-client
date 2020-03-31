@@ -12,7 +12,8 @@
                 "<node_internals>/**"
             ],
             "program": "${workspaceFolder}\\index.js",
-            "args": ["C:\\Users\\dyakovenko\\Documents\\tmp"]
+            "args": ["D:\\Works\\camunda-formio\\src\\main\\webapp\\js"],
+            "console": "integratedTerminal"
         },
         {
             "type": "node",
