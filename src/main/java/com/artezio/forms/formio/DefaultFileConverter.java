@@ -3,6 +3,9 @@ package com.artezio.forms.formio;
 import com.artezio.forms.converters.FileConverter;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import javax.inject.Named;
+
+@Named
 class DefaultFileConverter extends FileConverter {
 
     @Override

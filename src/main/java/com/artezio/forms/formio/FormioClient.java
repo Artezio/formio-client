@@ -18,14 +18,10 @@ import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import net.minidev.json.JSONArray;
 import org.apache.commons.lang3.StringUtils;
 
-import javax.enterprise.inject.spi.CDI;
-import javax.servlet.ServletContext;
-import java.io.File;
+import javax.inject.Inject;
+import javax.inject.Named;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,13 +34,12 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.*;
 
 import static java.lang.Boolean.TRUE;
 import static java.util.Arrays.asList;
 
+@Named
 public class FormioClient implements FormClient {
 
     private static final Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
@@ -83,18 +78,17 @@ public class FormioClient implements FormClient {
     }
 
     private FileConverter fileConverter;
+    private ResourceLoader defaultResourceLoader;
 
-    public FormioClient() {
-        this(new DefaultFileConverter());
-    }
-
-    public FormioClient(FileConverter fileConverter) {
+    @Inject
+    public FormioClient(FileConverter fileConverter, ResourceLoader defaultResourceLoader) {
         this.fileConverter = fileConverter;
+        this.defaultResourceLoader = defaultResourceLoader;
     }
 
     @Override
     public String getFormWithData(String formKey, ObjectNode currentVariables) {
-        return getFormWithData(formKey, currentVariables, new DefaultResourceLoader(), new FormioBase64FileStorage());
+        return getFormWithData(formKey, currentVariables, defaultResourceLoader, new FormioBase64FileStorage());
     }
 
     @Override
@@ -104,7 +98,7 @@ public class FormioClient implements FormClient {
 
     @Override
     public String getFormWithData(String formKey, ObjectNode currentVariables, FileStorage fileStorage) {
-        return getFormWithData(formKey, currentVariables, new DefaultResourceLoader(), fileStorage);
+        return getFormWithData(formKey, currentVariables, defaultResourceLoader, fileStorage);
     }
 
     @Override
@@ -122,7 +116,7 @@ public class FormioClient implements FormClient {
 
     @Override
     public boolean shouldProcessSubmission(String formKey, String submissionState) {
-        return shouldProcessSubmission(formKey, submissionState, new DefaultResourceLoader());
+        return shouldProcessSubmission(formKey, submissionState, defaultResourceLoader);
     }
 
     @Override
@@ -136,12 +130,12 @@ public class FormioClient implements FormClient {
 
     @Override
     public String dryValidationAndCleanup(String formKey, ObjectNode submittedVariables, ObjectNode currentVariables) {
-        return dryValidationAndCleanup(formKey, submittedVariables, currentVariables, new DefaultResourceLoader(), new FormioBase64FileStorage());
+        return dryValidationAndCleanup(formKey, submittedVariables, currentVariables, defaultResourceLoader, new FormioBase64FileStorage());
     }
 
     @Override
     public String dryValidationAndCleanup(String formKey, ObjectNode submittedVariables, ObjectNode currentVariables, FileStorage fileStorage) {
-        return dryValidationAndCleanup(formKey, submittedVariables, currentVariables, new DefaultResourceLoader(), fileStorage);
+        return dryValidationAndCleanup(formKey, submittedVariables, currentVariables, defaultResourceLoader, fileStorage);
     }
 
     @Override
@@ -180,7 +174,7 @@ public class FormioClient implements FormClient {
 
     @Override
     public List<String> getRootFormFieldNames(String formKey) {
-        return getRootFormFieldNames(formKey, new DefaultResourceLoader());
+        return getRootFormFieldNames(formKey, defaultResourceLoader);
     }
 
     @Override
@@ -196,7 +190,7 @@ public class FormioClient implements FormClient {
 
     @Override
     public List<String> getFormFieldPaths(String formKey) {
-        return getFormFieldPaths(formKey, new DefaultResourceLoader());
+        return getFormFieldPaths(formKey, defaultResourceLoader);
     }
 
     @Override
@@ -754,55 +748,6 @@ public class FormioClient implements FormClient {
             return fileVariableValue;
         }
 
-    }
-
-    private class DefaultResourceLoader implements ResourceLoader {
-        private final Pattern RESOURCE_KEY_PATTERN = Pattern.compile("(:?embedded:\\w*:)?(.+)");
-
-        private ServletContext servletContext;
-        private String rootDirectory = "public";
-
-        public DefaultResourceLoader() {
-            this.servletContext = CDI.current().select(ServletContext.class).get();
-        }
-
-        @Override
-        public InputStream getResource(String resourceKey) {
-            resourceKey = getResourcePath(resourceKey);
-            return servletContext.getResourceAsStream(rootDirectory + "/" + resourceKey);
-        }
-
-        @Override
-        public List<String> listResourceNames() {
-            return listResourceNames(rootDirectory).stream()
-                    .map(resourceName -> resourceName.substring((rootDirectory + "/").length()))
-                    .collect(Collectors.toList());
-        }
-
-        private List<String> listResourceNames(String resourcesDirectory) {
-            try {
-                String resourcePath = resourcesDirectory.startsWith("/") ? resourcesDirectory : "/" + resourcesDirectory;
-                URL url = servletContext.getResource(resourcePath);
-                if (url == null) return Collections.emptyList();
-                File resource = new File(url.toURI());
-                return Arrays.stream(resource.listFiles())
-                        .flatMap(file -> {
-                            String resourceName = resourcesDirectory + "/" + file.getName();
-                            return file.isDirectory()
-                                    ? listResourceNames(resourceName).stream()
-                                    : Stream.of(resourceName);
-                        })
-                        .collect(Collectors.toList());
-            } catch (MalformedURLException | URISyntaxException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        private String getResourcePath(String resourceKey) {
-            Matcher matcher = RESOURCE_KEY_PATTERN.matcher(resourceKey);
-            matcher.matches();
-            return matcher.group(2);
-        }
     }
 
 }
