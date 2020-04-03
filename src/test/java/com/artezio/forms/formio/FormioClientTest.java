@@ -61,7 +61,7 @@ public class FormioClientTest {
 
     @Before
     public void setUp() throws Exception {
-        formioClient = new FormioClient(fileConverter);
+        formioClient = new FormioClient(fileConverter, resourceLoader);
         FileConverter fileConverter = new DefaultFileConverter();
         setField(formioClient, FormioClient.class.getDeclaredField("fileConverter"), fileConverter);
     }
