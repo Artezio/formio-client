@@ -32,17 +32,12 @@ not correspond to form fields. As [Form.io] engine does not return values that m
 ## Usage
 
 1. Open `pom.xml` of your maven project. 
-
 1. Add the repository:
-
     ```xml
-    <repositories>
-        <repository>
-            <id>maven-releases</id>
-            <url>https://nexus.artezio.net/repository/maven-releases</url>
-        </repository>
-        ...
-    </repositories>
+    <repository>
+        <id>artezio</id>
+        <url>https://nexus.artezio.net/repository/maven-releases</url>
+    </repository>
     ```
 
 1. Add the dependency:
