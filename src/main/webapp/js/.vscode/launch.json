@@ -13,7 +13,7 @@
             ],
             "program": "${workspaceFolder}\\index.js",
             "args": ["D:\\Works\\camunda-formio\\src\\main\\webapp\\js"],
-            "console": "integratedTerminal"
+            // "console": "integratedTerminal"
         },
         {
             "type": "node",

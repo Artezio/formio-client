@@ -5,8 +5,8 @@ const { CUSTOM_COMPONENTS_FOLDER_NAME } = require('./constants');
 
 function registerComponent(componentDetails = {}) {
     const { name, path } = componentDetails;
-    const customComponent = __non_webpack_require__(path);
-    // const customComponent = require(path);
+    // const customComponent = __non_webpack_require__(path);
+    const customComponent = require(path);
     Formio.registerComponent(name, customComponent);
 }
 
