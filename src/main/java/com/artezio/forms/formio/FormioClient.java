@@ -180,7 +180,7 @@ public class FormioClient implements FormClient {
     @Override
     public List<String> getRootFormFieldNames(String formKey, ResourceLoader resourceLoader) {
         JsonNode formDefinition = getForm(formKey, resourceLoader);
-        return Optional.of(getChildComponents(formDefinition)).stream()
+        return Optional.of(listChildComponents(formDefinition)).stream()
                 .flatMap(Collection::stream)
                 .filter(component -> component.path("input").asBoolean())
                 .filter(component -> StringUtils.isNotBlank(component.path("key").asText()))
@@ -196,7 +196,7 @@ public class FormioClient implements FormClient {
     @Override
     public List<String> getFormFieldPaths(String formKey, ResourceLoader resourceLoader) {
         JsonNode formDefinition = getForm(formKey, resourceLoader);
-        return Optional.of(getChildComponents(formDefinition)).stream()
+        return Optional.of(listChildComponents(formDefinition)).stream()
                 .flatMap(Collection::stream)
                 .filter(component -> component.path("input").asBoolean())
                 .filter(component -> StringUtils.isNotBlank(component.path("key").asText()))
@@ -211,7 +211,7 @@ public class FormioClient implements FormClient {
         result.add(componentName);
         if (!isContainerComponent(component) && !isArrayComponent(component))
             return result;
-        Optional.of(getChildComponents(component)).stream()
+        Optional.of(listChildComponents(component)).stream()
                 .flatMap(Collection::stream)
                 .filter(childComponent -> childComponent.path("input").asBoolean())
                 .filter(childComponent -> StringUtils.isNotBlank(childComponent.path("key").asText()))
@@ -276,22 +276,29 @@ public class FormioClient implements FormClient {
         return customComponentsDir.replaceAll("\\\\", "\\\\\\\\");
     }
 
-    protected JsonNode expandSubforms(JsonNode form, ResourceLoader resourceLoader) {
+    protected JsonNode expandSubforms(JsonNode component, ResourceLoader resourceLoader) {
         Collector<JsonNode, ArrayNode, ArrayNode> arrayNodeCollector = Collector
                 .of(JSON_MAPPER::createArrayNode, ArrayNode::add, ArrayNode::addAll);
         Function<JsonNode, JsonNode> expandSubformsFunction = getExpandSubformsFunction(resourceLoader);
-        JsonNode components = toStream(form.get("components"))
+        JsonNode childComponents = !component.isArray() ? getChildComponents(component) : component;
+        JsonNode components = toStream(childComponents)
                 .map(expandSubformsFunction)
                 .collect(arrayNodeCollector);
-        return ((ObjectNode) form).set("components", components);
+        return !component.isArray()
+                ? ((ObjectNode) component).set("components", components)
+                : components;
     }
 
     private Function<JsonNode, JsonNode> getExpandSubformsFunction(ResourceLoader resourceLoader) {
+        String[] componentsWithChildren = {"container", "tree", "datagrid", "editgrid", "well", "columns", "fieldset",
+                "panel", "table", "tabs"};
         return component -> {
-            if (hasTypeOf(component, "container") || isArrayComponent(component)) {
+            if (hasTypeOf(component, componentsWithChildren) || component.isArray()) {
                 return expandSubforms(component, resourceLoader);
             } else if (hasTypeOf(component, "form")) {
                 return convertToContainer(component, resourceLoader);
+            } else if (component.has("components")) {
+                return expandSubforms(component, resourceLoader);
             } else {
                 return component;
             }
@@ -337,7 +344,7 @@ public class FormioClient implements FormClient {
     private JsonNode wrapGridDataInObject(JsonNode data, JsonNode definition) {
         ObjectNode dataWithWrappedChildren = data.deepCopy();
         if (hasChildComponents(definition)) {
-            List<JsonNode> childComponents = getChildComponents(definition);
+            List<JsonNode> childComponents = listChildComponents(definition);
             for (JsonNode child : childComponents) {
                 String key = child.get("key").asText();
                 if (dataWithWrappedChildren.has(key)) {
@@ -377,7 +384,15 @@ public class FormioClient implements FormClient {
         return !definition.at("/components").isMissingNode();
     }
 
-    private List<JsonNode> getChildComponents(JsonNode definition) {
+    private JsonNode getChildComponents(JsonNode component) {
+        if (hasTypeOf(component, "columns"))
+            return component.get("columns");
+        if (hasTypeOf(component, "table"))
+            return component.get("rows");
+        return component.get("components");
+    }
+
+    private List<JsonNode> listChildComponents(JsonNode definition) {
         final Set<String> layoutComponentTypes = new HashSet<>(asList("well", "table", "columns", "fieldset", "panel"));
         final Set<String> containerComponentTypes = new HashSet<>(asList("well", "fieldset", "panel"));
         List<JsonNode> nodes = new ArrayList<>();
@@ -404,7 +419,7 @@ public class FormioClient implements FormClient {
 
     private JsonNode unwrapGridData(JsonNode data, JsonNode definition) {
         if (hasChildComponents(definition)) {
-            List<JsonNode> childComponents = getChildComponents(definition);
+            List<JsonNode> childComponents = listChildComponents(definition);
             if (data.isObject()) {
                 return unwrapGridDataFromObject(data, childComponents);
             }
@@ -464,20 +479,24 @@ public class FormioClient implements FormClient {
     }
 
     private boolean isContainerComponent(JsonNode componentDefinition) {
-        return hasTypeOf(componentDefinition, "form")
-                || hasTypeOf(componentDefinition, "container")
-                || hasTypeOf(componentDefinition, "survey");
+        return hasTypeOf(componentDefinition, "form", "container", "survey");
     }
 
     private boolean isArrayComponent(JsonNode componentDefinition) {
-        return hasTypeOf(componentDefinition, "datagrid")
-                || hasTypeOf(componentDefinition, "editgrid");
+        return hasTypeOf(componentDefinition, "datagrid", "editgrid");
     }
 
-    private boolean hasTypeOf(JsonNode component, String type) {
+    private boolean isLayoutComponent(JsonNode component) {
+        return hasTypeOf(component, "well", "columns", "fieldset", "panel", "table", "tabs");
+    }
+
+    private boolean hasTypeOf(JsonNode component, String... types) {
         JsonNode typeField = component.get("type");
         String componentType = typeField != null ? typeField.asText() : "";
-        return componentType.equals(type);
+        boolean result = false;
+        for (String type : types)
+            result |= componentType.equals(type);
+        return result;
     }
 
     private Stream<JsonNode> toStream(JsonNode node) {
@@ -491,7 +510,7 @@ public class FormioClient implements FormClient {
 
     private JsonNode getFormVariables(JsonNode formDefinition, ObjectNode submittedVariables,
                                       ObjectNode currentVariables) {
-        return getFormVariables(getChildComponents(formDefinition), submittedVariables, currentVariables);
+        return getFormVariables(listChildComponents(formDefinition), submittedVariables, currentVariables);
     }
 
     private JsonNode getFormVariables(List<JsonNode> formComponents, JsonNode submittedVariables,
@@ -526,7 +545,7 @@ public class FormioClient implements FormClient {
         String componentKey = component.get("key").asText();
         submittedVariables = submittedVariables.has(componentKey) ? submittedVariables.get(componentKey) : JSON_MAPPER.createObjectNode();
         currentVariables = currentVariables.has(componentKey) ? currentVariables.get(componentKey) : JSON_MAPPER.createObjectNode();
-        JsonNode containerValue = getFormVariables(getChildComponents(component), submittedVariables, currentVariables);
+        JsonNode containerValue = getFormVariables(listChildComponents(component), submittedVariables, currentVariables);
         return containerValue.size() == 0 ? null : new SimpleEntry<>(componentKey, containerValue);
     }
 
@@ -540,7 +559,7 @@ public class FormioClient implements FormClient {
             for (int i = 0; i < editableArrayData.size(); i++) {
                 JsonNode editableArrayItemData = editableArrayData.get(i);
                 JsonNode readOnlyDataArrayItemData = readOnlyArrayData.has(i) ? readOnlyArrayData.get(i) : JSON_MAPPER.createObjectNode();
-                JsonNode containerItemValue = getFormVariables(getChildComponents(component), editableArrayItemData, readOnlyDataArrayItemData);
+                JsonNode containerItemValue = getFormVariables(listChildComponents(component), editableArrayItemData, readOnlyDataArrayItemData);
                 containerValue.add(containerItemValue);
             }
         }
