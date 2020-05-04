@@ -42,7 +42,6 @@ import static java.util.Arrays.asList;
 @Named
 public class FormioClient implements FormClient {
 
-    private static final Map<String, JsonNode> FORMS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, String> FORM_RESOURCES_DIR_CACHE = new ConcurrentHashMap<>();
@@ -229,17 +228,9 @@ public class FormioClient implements FormClient {
         return unwrapGridData(json, formDefinition);
     }
 
-    //TODO find the best way to make forms immutable
     private JsonNode getForm(String formKey, ResourceLoader resourceLoader) {
         try(InputStream resource = resourceLoader.getResource(formKey)) {
-            JsonNode form = FORMS_CACHE.computeIfAbsent(formKey, key -> {
-                try {
-                    return expandSubforms(JSON_MAPPER.readTree(resource), resourceLoader);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            return form.deepCopy();
+            return expandSubforms(JSON_MAPPER.readTree(resource), resourceLoader);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

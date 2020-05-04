@@ -68,13 +68,10 @@ public class FormioClientTest {
 
     @After
     public void tearDown() throws NoSuchFieldException, IllegalAccessException {
-        Field formsCacheField = FormioClient.class.getDeclaredField("FORMS_CACHE");
         Field submitButtonsCacheField = FormioClient.class.getDeclaredField("SUBMISSION_PROCESSING_DECISIONS_CACHE");
         Field formResourcesDirCacheField = FormioClient.class.getDeclaredField("FORM_RESOURCES_DIR_CACHE");
-        formsCacheField.setAccessible(true);
         submitButtonsCacheField.setAccessible(true);
         formResourcesDirCacheField.setAccessible(true);
-        ((Map<String, JsonNode>) formsCacheField.get(FormioClient.class)).clear();
         ((Map<String, JsonNode>) submitButtonsCacheField.get(FormioClient.class)).clear();
         ((Map<String, JsonNode>) formResourcesDirCacheField.get(FormioClient.class)).clear();
     }
@@ -613,9 +610,10 @@ public class FormioClientTest {
         String subformKey = "subform.json";
         JsonNode formDefinition = jsonMapper.readTree(getFile(formKey));
         JsonNode expected = jsonMapper.readTree(getFile("forms/formWithTransformedSubformsInArrays.json"));
-        FileInputStream subform = new FileInputStream(getFile("forms/" + subformKey));
+        FileInputStream subformCall1 = new FileInputStream(getFile("forms/" + subformKey));
+        FileInputStream subformCall2 = new FileInputStream(getFile("forms/" + subformKey));
 
-        when(resourceLoader.getResource(subformKey)).thenReturn(subform);
+        when(resourceLoader.getResource(subformKey)).thenReturn(subformCall1, subformCall2);
 
         JsonNode actual = formioClient.expandSubforms(formDefinition, resourceLoader);
 
