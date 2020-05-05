@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "build": "webpack",
+    "build": "webpack && node utils/replaceQuotes.js",
     "test": "jest",
     "test-cmd": "node dist/index.js 0<test.dev.json 2>resultError.dev.txt && echo Done! || echo Error!!!"
   },
