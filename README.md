@@ -53,22 +53,25 @@ not correspond to form fields. As [Form.io] engine does not return values that m
 
 1. Create a form using [Formio Modeler] (see [Creating Forms]).
 
-1. If you need to have an opportunity to cancel process evaluation and not to perform validation, you have to provided date about submission state.
-    * Add `Button` to the form you are creating
-    
+1. If you need to have an opportunity to cancel process evaluation and skip validation, you have to provide
+info about submission state:
+    1. Add `Button` to the form you are creating
+       
     ![](doc/button-component.png)
-    
-    * In an opened window on `Display` page choose `Action` equal to `Save in state` and give a name to the state that the button will pass (e.g. `cancelled`)
-    
+       
+    2. In an opened window on `Display` page choose `Action` equal to `Save in state` and give a name to the state that
+             will be passed (e.g. `cancelled`)
+       
     ![](doc/button-component-action-setup.png)
-    
-    * On `API` page add custom property with the name `isSubmissionProcessed` and set the boolean value (e.g. `false`)
-    
+       
+    3. On `API` page add custom property with the name `isSubmissionProcessed` and set the boolean value (e.g. `false`)
+       
     ![](doc/button-component-properties-setup.png)
-    
-    * Save settings
-    
-    After that `state` variable will be passed with the rest form fields.
+       
+    4. Save settings
+       
+After that the `state` variable will be passed with the rest form fields and in accordance to the value of `isSubmissionProcessed`
+variable the validation will either be performed or not. 
 
 [Creating Forms]: https://help.form.io/userguide/forms/#creating-a-form
 [Download Formio Modeler]: https://github.com/Artezio/FormIO-Modeler/releases
