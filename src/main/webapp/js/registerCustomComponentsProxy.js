@@ -1,11 +1,11 @@
 const registerCustomComponents = require('./registerCustomComponents');
 
-const pathsSet = {};
+let previousPath = '';
 
 module.exports = function registerCustomComponentsProxy(resourcePath) {
-    if (pathsSet[resourcePath]) {
+    if (resourcePath === previousPath) {
         return;
     }
     registerCustomComponents(resourcePath);
-    pathsSet[resourcePath] = true;
+    previousPath = resourcePath;
 }
