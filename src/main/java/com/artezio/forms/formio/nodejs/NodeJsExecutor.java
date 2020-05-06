@@ -22,10 +22,10 @@ public class NodeJsExecutor {
             .parseInt(System.getProperty("NODEJS_POOL_MAX_IDLE", "" + AVAILABLE_PROCESSORS_NUMBER));
     
     private static final long NODEJS_POOL_MIN_EVICTABLE_IDLE_TIME_MINS = Long
-            .parseLong(System.getProperty("NODEJS_POOL_MAX_IDLE", "30"));
+            .parseLong(System.getProperty("NODEJS_POOL_MIN_EVICTABLE_IDLE_TIME_MINS", "30"));
     
     private static final long NODEJS_POOL_TIME_BETWEEN_EVICTION_RUNS_MINS = Long
-            .parseLong(System.getProperty("NODEJS_POOL_MAX_IDLE", "5"));
+            .parseLong(System.getProperty("NODEJS_POOL_TIME_BETWEEN_EVICTION_RUNS_MINS", "5"));
     
     private GenericObjectPool<NodeJs> pool;
 

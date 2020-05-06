@@ -44,8 +44,6 @@ import static java.util.Arrays.asList;
 @Named
 public class FormioClient implements FormClient {
     
-    private static final int DEPLOYMENT_RESOURCES_CACHE_SIZE = Integer.parseInt(System.getProperty("DEPLOYMENT_RESOURCES_CACHE_SIZE", "100"));
-
     private static final Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, String> FORM_RESOURCES_DIR_CACHE = new ConcurrentHashMap<>();
