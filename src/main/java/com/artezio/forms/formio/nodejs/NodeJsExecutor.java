@@ -13,12 +13,28 @@ import java.util.logging.Logger;
 public class NodeJsExecutor {
 
     private static final Logger LOGGER = Logger.getLogger(NodeJsExecutor.class.getName());
+    private static final int AVAILABLE_PROCESSORS_NUMBER = Runtime.getRuntime().availableProcessors();
+    
+    private static final int NODEJS_POOL_MAX_TOTAL = Integer
+            .parseInt(System.getProperty("NODEJS_POOL_MAX_TOTAL", "" + AVAILABLE_PROCESSORS_NUMBER));
+    
+    private static final int NODEJS_POOL_MAX_IDLE = Integer
+            .parseInt(System.getProperty("NODEJS_POOL_MAX_IDLE", "" + AVAILABLE_PROCESSORS_NUMBER));
+    
+    private static final long NODEJS_POOL_MIN_EVICTABLE_IDLE_TIME_MINS = Long
+            .parseLong(System.getProperty("NODEJS_POOL_MAX_IDLE", "30"));
+    
+    private static final long NODEJS_POOL_TIME_BETWEEN_EVICTION_RUNS_MINS = Long
+            .parseLong(System.getProperty("NODEJS_POOL_MAX_IDLE", "5"));
+    
     private GenericObjectPool<NodeJs> pool;
 
     public NodeJsExecutor(String script) {
-        LOGGER.config(String.format("Initializing factory for nodeJs pool objects (%s)", BasePooledObjectFactory.class.getName()));
+        LOGGER.config(String.format("Initializing factory for nodeJs pool objects (%s)",
+                BasePooledObjectFactory.class.getName()));
         PooledObjectFactory<NodeJs> pooledObjectFactory = initPooledObjectFactory(script);
-        LOGGER.config(String.format("Initializing config for nodeJs pool (%s)", GenericObjectPoolConfig.class.getName()));
+        LOGGER.config(
+                String.format("Initializing config for nodeJs pool (%s)", GenericObjectPoolConfig.class.getName()));
         GenericObjectPoolConfig<NodeJs> poolConfig = initPoolConfig();
         LOGGER.config("Creating nodeJs pool");
         pool = new GenericObjectPool<>(pooledObjectFactory, poolConfig);
@@ -46,13 +62,14 @@ public class NodeJsExecutor {
     }
 
     private GenericObjectPoolConfig<NodeJs> initPoolConfig() {
-        return new GenericObjectPoolConfig<>() {{
-            int availableProcessors = Runtime.getRuntime().availableProcessors();
-            setMaxTotal(availableProcessors);
-            setMaxIdle(availableProcessors);
-            setMinEvictableIdleTimeMillis(Duration.ofMinutes(30).toMillis());
-            setTimeBetweenEvictionRunsMillis(Duration.ofMinutes(5).toMillis());
-        }};
+        return new GenericObjectPoolConfig<>() {
+            {
+                setMaxTotal(NODEJS_POOL_MAX_TOTAL);
+                setMaxIdle(NODEJS_POOL_MAX_IDLE);
+                setMinEvictableIdleTimeMillis(Duration.ofMinutes(NODEJS_POOL_MIN_EVICTABLE_IDLE_TIME_MINS).toMillis());
+                setTimeBetweenEvictionRunsMillis(Duration.ofMinutes(NODEJS_POOL_TIME_BETWEEN_EVICTION_RUNS_MINS).toMillis());
+            }
+        };
     }
 
     public String execute(String arguments) throws Exception {

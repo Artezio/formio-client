@@ -43,6 +43,8 @@ import static java.util.Arrays.asList;
 
 @Named
 public class FormioClient implements FormClient {
+    
+    private static final int DEPLOYMENT_RESOURCES_CACHE_SIZE = Integer.parseInt(System.getProperty("DEPLOYMENT_RESOURCES_CACHE_SIZE", "100"));
 
     private static final Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
@@ -72,7 +74,8 @@ public class FormioClient implements FormClient {
         }
     }
     
-    private static final Map<String, NodeJsExecutor> NODEJS_EXECUTORS = Collections.synchronizedMap(new LRUMap<>());//TODO add max size parameter
+    private static final int NODEJS_EXECUTOR_POOL_SIZE = Integer.parseInt(System.getProperty("NODEJS_EXECUTOR_POOL_SIZE", "100"));
+    private static final Map<String, NodeJsExecutor> NODEJS_EXECUTORS = Collections.synchronizedMap(new LRUMap<>(NODEJS_EXECUTOR_POOL_SIZE));
 
     static NodeJsExecutor createNodeJsExecutor() {
         try (InputStream resource = FormioClient.class.getClassLoader().getResourceAsStream(NODEJS_SCRIPT_PATH)) {
