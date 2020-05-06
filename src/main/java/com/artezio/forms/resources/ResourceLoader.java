@@ -19,5 +19,10 @@ public interface ResourceLoader {
      * @return List of existent resources
      */
     List<String> listResourceNames();
+    
+    /**
+     * Returns a group id for the resources. The resource loaders which provide the same resources should have the same group id for the effective caching.  
+     */
+    String getGroupId();
 
 }
