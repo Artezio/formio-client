@@ -9,7 +9,7 @@
     "test-cmd": "node dist/index.js 0<test.dev.json 2>resultError.dev.txt && echo Done! || echo Error!!!"
   },
   "dependencies": {
-    "formiojs": "4.8.0",
+    "formiojs": "4.9.22",
     "jsdom": "^15.2.1",
     "jsdom-global": "^3.0.2"
   },

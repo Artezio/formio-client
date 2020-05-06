@@ -21,7 +21,7 @@ module.exports = {
       callback();
     }
   ],
-  // mode: 'production',
+  mode: 'production',
   // mode: 'development',
   // devtool: 'source-map'
 }
