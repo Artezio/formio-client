@@ -13,12 +13,12 @@ function handleStdin(data) {
         .then(() => stdout.finally())
 }
 
-// process.stdin.on('data', handleStdin);
+process.stdin.on('data', handleStdin);
 
-data = require('./test.dev');
-const command = getCommand(data.operation, data);
-console.time('123');
-command.execute().then(() => {
-    console.timeEnd('123');
-    stdout.finally()
-})
+// data = require('./test.dev');
+// const command = getCommand(data.operation, data);
+// console.time('123');
+// command.execute().then(() => {
+//     console.timeEnd('123');
+//     stdout.finally()
+// })
