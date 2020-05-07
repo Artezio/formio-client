@@ -70,4 +70,9 @@ public class DefaultResourceLoader implements ResourceLoader {
         return matcher.group(2);
     }
 
+    @Override
+    public String getGroupId() {
+        return null;
+    }
+
 }

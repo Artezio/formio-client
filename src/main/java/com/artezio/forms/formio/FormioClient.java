@@ -16,6 +16,8 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.jayway.jsonpath.*;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import net.minidev.json.JSONArray;
+
+import org.apache.commons.collections4.map.LRUMap;
 import org.apache.commons.lang3.StringUtils;
 
 import javax.inject.Inject;
@@ -41,13 +43,16 @@ import static java.util.Arrays.asList;
 
 @Named
 public class FormioClient implements FormClient {
-
+    
     private static final Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, String> FORM_RESOURCES_DIR_CACHE = new ConcurrentHashMap<>();
+    
     private static final String VALIDATION_OPERATION_NAME = "validate";
     private static final String CLEANUP_OPERATION_NAME = "cleanup";
     private static final String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
+    private static final String NODEJS_FORMIO_SCRIPT_PATH = "formio-scripts/formio.js";
+    
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
@@ -55,6 +60,7 @@ public class FormioClient implements FormClient {
             .jsonProvider(new JacksonJsonNodeJsonProvider())
             .build());
     private static final Path FORMIO_TEMP_DIR;
+    
     static {
         try {
             Path path = Paths.get(System.getProperty("java.io.tmpdir"), ".formio");
@@ -65,14 +71,17 @@ public class FormioClient implements FormClient {
             throw new RuntimeException("Error while creating formio temp directory", e);
         }
     }
-    private static final NodeJsExecutor NODEJS_EXECUTOR;
+    
+    private static final int NODEJS_EXECUTOR_POOL_SIZE = Integer.parseInt(System.getProperty("NODEJS_EXECUTOR_POOL_SIZE", "100"));
+    private static final Map<String, NodeJsExecutor> NODEJS_EXECUTORS = Collections.synchronizedMap(new LRUMap<>(NODEJS_EXECUTOR_POOL_SIZE));
+    
+    private static final String NODEJS_FORMIO_SCRIPT;
+    
     static {
-        final String SCRIPT_PATH = "formio-scripts/formio.js";
-        try (InputStream resource = FormioClient.class.getClassLoader().getResourceAsStream(SCRIPT_PATH)) {
-            String formioScript = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
-            NODEJS_EXECUTOR = new NodeJsExecutor(formioScript);
+        try (InputStream resource = FormioClient.class.getClassLoader().getResourceAsStream(NODEJS_FORMIO_SCRIPT_PATH)) {
+            NODEJS_FORMIO_SCRIPT = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException ex) {
-            throw new RuntimeException("Could not load script: '" + SCRIPT_PATH + "'", ex);
+            throw new RuntimeException("Could not load script: '" + NODEJS_FORMIO_SCRIPT_PATH + "'", ex);
         }
     }
 
@@ -159,8 +168,9 @@ public class FormioClient implements FormClient {
             formVariables = fileOperationExecutor
                     .extractFormioDataInUrl(dataInUrlBuffer)
                     .execute(formVariables);
-            String formIoBundle = toFormIoBundle(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariables.toString(), formResourcesDirPath);
-            JsonNode validationResult = getDataFromScriptExecutionResult(NODEJS_EXECUTOR.execute(formIoBundle), formDefinition);
+            String formIoValidateCommand = getFormIoCommand(VALIDATION_OPERATION_NAME, formDefinitionJson, formVariables.toString(), formResourcesDirPath);
+            String formIoValidateResult = executeNodeJS(resourceLoader, formIoValidateCommand);
+            JsonNode validationResult = getDataFromScriptExecutionResult(formIoValidateResult, formDefinition);
             return fileOperationExecutor
                     .addFormioDataInUrl(dataInUrlBuffer)
                     .convertFromFormioFile()
@@ -249,11 +259,16 @@ public class FormioClient implements FormClient {
                 .addDownloadUrlPrefix(fileStorage)
                 .execute(currentVariables);
         String formResourcesDirPath = getFormResourcesDirPath(formDefinition, resourceLoader);
-        String formIoBundle = toFormIoBundle(CLEANUP_OPERATION_NAME, formDefinition, currentVariables.toString(), formResourcesDirPath);
-        return JSON_MAPPER.readTree(NODEJS_EXECUTOR.execute(formIoBundle));
+        String formIoCleanupCommand = getFormIoCommand(CLEANUP_OPERATION_NAME, formDefinition, currentVariables.toString(), formResourcesDirPath);
+        String formIoCleanupResult = executeNodeJS(resourceLoader, formIoCleanupCommand);
+        return JSON_MAPPER.readTree(formIoCleanupResult);
     }
 
-    private String toFormIoBundle(String operation, String formDefinition, String data, String customComponentsDir)
+    private String executeNodeJS(ResourceLoader resourceLoader, String command) throws Exception {
+        return NODEJS_EXECUTORS.computeIfAbsent(resourceLoader.getGroupId(), key -> new NodeJsExecutor(NODEJS_FORMIO_SCRIPT)).execute(command);
+    }
+
+    String getFormIoCommand(String operation, String formDefinition, String data, String customComponentsDir)
             throws IOException {
         ObjectNode command = JSON_MAPPER.createObjectNode();
         command.set("form", JSON_MAPPER.readTree(formDefinition));
@@ -578,7 +593,10 @@ public class FormioClient implements FormClient {
     }
 
     private String getFormResourcesDirPath(String formDefinitionJson, ResourceLoader resourceLoader) {
-        String cacheKey = String.valueOf(formDefinitionJson.hashCode());
+        String cacheKey = resourceLoader.getGroupId() != null ? 
+                resourceLoader.getGroupId()
+                : String.valueOf(formDefinitionJson.hashCode());
+        
         return FORM_RESOURCES_DIR_CACHE.computeIfAbsent(cacheKey, key -> {
             try {
                 Path formResourcesDir = createFormResourcesDir(key);
@@ -589,12 +607,18 @@ public class FormioClient implements FormClient {
             }
         });
     }
-
+    
+    
     private Path createFormResourcesDir(String dirName) throws IOException {
+        dirName = replaceIllegalPathNameCharacters(dirName);
         Path dir = Paths.get(FORMIO_TEMP_DIR.toString(), dirName);
         return dir.toFile().exists()
                 ? dir
                 : Files.createDirectories(dir);
+    }
+
+    private String replaceIllegalPathNameCharacters(String dirName) {
+        return dirName.replaceAll("[^a-zA-Z0-9\\.\\-]", "_");
     }
 
     private void populateFormResourcesDir(Path formReourcesDir, ResourceLoader resourceLoader) {
