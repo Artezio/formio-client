@@ -51,7 +51,7 @@ public class FormioClient implements FormClient {
     private static final String VALIDATION_OPERATION_NAME = "validate";
     private static final String CLEANUP_OPERATION_NAME = "cleanup";
     private static final String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
-    private static final String NODEJS_SCRIPT_PATH = "formio-scripts/formio.js";
+    private static final String NODEJS_FORMIO_SCRIPT_PATH = "formio-scripts/formio.js";
     
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -74,13 +74,14 @@ public class FormioClient implements FormClient {
     
     private static final int NODEJS_EXECUTOR_POOL_SIZE = Integer.parseInt(System.getProperty("NODEJS_EXECUTOR_POOL_SIZE", "100"));
     private static final Map<String, NodeJsExecutor> NODEJS_EXECUTORS = Collections.synchronizedMap(new LRUMap<>(NODEJS_EXECUTOR_POOL_SIZE));
-
-    static NodeJsExecutor createNodeJsExecutor() {
-        try (InputStream resource = FormioClient.class.getClassLoader().getResourceAsStream(NODEJS_SCRIPT_PATH)) {
-            String formioScript = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
-            return new NodeJsExecutor(formioScript);
+    
+    private static final String NODEJS_FORMIO_SCRIPT;
+    
+    static {
+        try (InputStream resource = FormioClient.class.getClassLoader().getResourceAsStream(NODEJS_FORMIO_SCRIPT_PATH)) {
+            NODEJS_FORMIO_SCRIPT = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException ex) {
-            throw new RuntimeException("Could not load script: '" + NODEJS_SCRIPT_PATH + "'", ex);
+            throw new RuntimeException("Could not load script: '" + NODEJS_FORMIO_SCRIPT_PATH + "'", ex);
         }
     }
 
@@ -264,7 +265,7 @@ public class FormioClient implements FormClient {
     }
 
     private String executeNodeJS(ResourceLoader resourceLoader, String command) throws Exception {
-        return NODEJS_EXECUTORS.computeIfAbsent(resourceLoader.getGroupId(), key -> createNodeJsExecutor()).execute(command);
+        return NODEJS_EXECUTORS.computeIfAbsent(resourceLoader.getGroupId(), key -> new NodeJsExecutor(NODEJS_FORMIO_SCRIPT)).execute(command);
     }
 
     String getFormIoCommand(String operation, String formDefinition, String data, String customComponentsDir)
