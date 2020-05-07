@@ -1,0 +1,28 @@
+{
+  "name": "js-engine-server-side",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "webpack && node utils/replaceQuotes.js",
+    "test": "jest",
+    "test-cmd": "node dist/index.js 0<test.dev.json 2>resultError.dev.txt && echo Done! || echo Error!!!"
+  },
+  "dependencies": {
+    "formiojs": "4.9.22",
+    "jsdom": "^15.2.1",
+    "jsdom-global": "^3.0.2"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.7.5",
+    "@babel/core": "^7.7.5",
+    "@babel/node": "^7.7.4",
+    "@babel/plugin-transform-destructuring": "^7.7.4",
+    "@babel/polyfill": "^7.7.0",
+    "@babel/preset-env": "^7.7.6",
+    "babel-loader": "^8.0.6",
+    "jest": "^25.1.0",
+    "webpack": "^4.41.2",
+    "webpack-cli": "^3.3.10"
+  }
+}

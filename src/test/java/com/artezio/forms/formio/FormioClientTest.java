@@ -41,6 +41,7 @@ public class FormioClientTest {
     private static final String CLEANUP_OPERATION_NAME = "cleanup";
     private static final Path TEST_FORMIO_TMP_DIR = Paths.get(System.getProperty("java.io.tmpdir"), ".test-formio");
     private static final NodeJsExecutor NODEJS_EXECUTOR = mock(NodeJsExecutor.class);
+    private static final Map<String, NodeJsExecutor> NODEJS_EXECUTORS = mock(Map.class);
     private static final String PUBLIC_RESOURCES_DIRECTORY = "public";
 
     @Mock
@@ -56,7 +57,8 @@ public class FormioClientTest {
     @BeforeClass
     public static void prepareStaticFinalFields() throws NoSuchFieldException, IllegalAccessException {
         setFinalField(FormioClient.class,"FORMIO_TEMP_DIR", TEST_FORMIO_TMP_DIR);
-        setFinalField(FormioClient.class,"NODEJS_EXECUTOR", NODEJS_EXECUTOR);
+        setFinalField(FormioClient.class,"NODEJS_EXECUTORS", NODEJS_EXECUTORS);
+        when(NODEJS_EXECUTORS.computeIfAbsent(any(), any())).thenReturn(NODEJS_EXECUTOR);
     }
 
     @Before
@@ -68,13 +70,10 @@ public class FormioClientTest {
 
     @After
     public void tearDown() throws NoSuchFieldException, IllegalAccessException {
-        Field formsCacheField = FormioClient.class.getDeclaredField("FORMS_CACHE");
         Field submitButtonsCacheField = FormioClient.class.getDeclaredField("SUBMISSION_PROCESSING_DECISIONS_CACHE");
         Field formResourcesDirCacheField = FormioClient.class.getDeclaredField("FORM_RESOURCES_DIR_CACHE");
-        formsCacheField.setAccessible(true);
         submitButtonsCacheField.setAccessible(true);
         formResourcesDirCacheField.setAccessible(true);
-        ((Map<String, JsonNode>) formsCacheField.get(FormioClient.class)).clear();
         ((Map<String, JsonNode>) submitButtonsCacheField.get(FormioClient.class)).clear();
         ((Map<String, JsonNode>) formResourcesDirCacheField.get(FormioClient.class)).clear();
     }
@@ -613,9 +612,10 @@ public class FormioClientTest {
         String subformKey = "subform.json";
         JsonNode formDefinition = jsonMapper.readTree(getFile(formKey));
         JsonNode expected = jsonMapper.readTree(getFile("forms/formWithTransformedSubformsInArrays.json"));
-        FileInputStream subform = new FileInputStream(getFile("forms/" + subformKey));
+        FileInputStream subformCall1 = new FileInputStream(getFile("forms/" + subformKey));
+        FileInputStream subformCall2 = new FileInputStream(getFile("forms/" + subformKey));
 
-        when(resourceLoader.getResource(subformKey)).thenReturn(subform);
+        when(resourceLoader.getResource(subformKey)).thenReturn(subformCall1, subformCall2);
 
         JsonNode actual = formioClient.expandSubforms(formDefinition, resourceLoader);
 
@@ -639,6 +639,27 @@ public class FormioClientTest {
         JsonNode actual = formioClient.expandSubforms(formDefinition, resourceLoader);
 
         assertEquals(sortArray(expected.get("components")), sortArray(actual.get("components")));
+    }
+    
+    @Test
+    public void testGetFormIoCommand() throws Exception {
+        String operation = "operationName";
+        String formDefinition = "{\"_id\":\"1234\",\"type\":\"form\",\"machineName\":\"testForm\"}";
+        String data = "{\"text\":\"123\"}";
+        String customComponentsDir = "C:\\\\Temp";
+        
+        String actual = formioClient.getFormIoCommand(operation, formDefinition, data, customComponentsDir);
+        
+        JsonNode actualJson = jsonMapper.readTree(actual);
+        assertTrue(actualJson.hasNonNull("form"));
+        assertEquals(formDefinition, actualJson.get("form").toString());
+        assertTrue(actualJson.hasNonNull("data"));
+        assertEquals(data, actualJson.get("data").toString());
+        assertTrue(actualJson.hasNonNull("operation"));
+        assertEquals(operation, actualJson.get("operation").asText());
+        assertTrue(actualJson.hasNonNull("resourcePath"));
+        assertEquals("C:\\\\\\\\Temp", actualJson.get("resourcePath").asText());
+        
     }
 
     private void assertFileStorageEntitiesEquals(FileStorageEntity entity1, FileStorageEntity entity2) throws IOException {

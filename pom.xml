@@ -5,7 +5,7 @@
 
 	<groupId>com.artezio.forms</groupId>
 	<artifactId>formio</artifactId>
-	<version>1.0.0</version>
+	<version>1.1.0</version>
 	<packaging>jar</packaging>
 
 	<properties>
@@ -68,6 +68,11 @@
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-databind</artifactId>
 			<version>2.9.10.4</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-collections4</artifactId>
+			<version>4.1</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
