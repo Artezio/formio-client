@@ -47,6 +47,7 @@ public class FormioClient implements FormClient {
     private static final Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, String> FORM_RESOURCES_DIR_CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, Map<String, String>> RESOURCE_GROUP_FORM_KEYS = new ConcurrentHashMap<>();
     
     private static final String VALIDATION_OPERATION_NAME = "validate";
     private static final String CLEANUP_OPERATION_NAME = "cleanup";
@@ -112,7 +113,7 @@ public class FormioClient implements FormClient {
     @Override
     public String getFormWithData(String formKey, ObjectNode currentVariables, ResourceLoader resourceLoader, FileStorage fileStorage) {
         try {
-            JsonNode formDefinition = getForm(formKey, resourceLoader);
+            JsonNode formDefinition = getFormByKey(formKey, resourceLoader);
             JsonNode cleanData = cleanUnusedData(formDefinition.toString(), currentVariables, resourceLoader, fileStorage);
             JsonNode data = wrapGridData(cleanData, formDefinition);
             ((ObjectNode) formDefinition).set("data", data);
@@ -129,7 +130,7 @@ public class FormioClient implements FormClient {
 
     @Override
     public boolean shouldProcessSubmission(String formKey, String submissionState, ResourceLoader resourceLoader) {
-        JsonNode formDefinition = getForm(formKey, resourceLoader);
+        JsonNode formDefinition = getFormByKey(formKey, resourceLoader);
         String cacheKey = String.format("%s-%s", formDefinition.toString(), submissionState);
         return SUBMISSION_PROCESSING_DECISIONS_CACHE.computeIfAbsent(
                 cacheKey,
@@ -156,7 +157,7 @@ public class FormioClient implements FormClient {
     public String dryValidationAndCleanup(String formKey, ObjectNode submittedVariables, ObjectNode currentVariables,
                                           ResourceLoader resourceLoader, FileStorage fileStorage) {
         try {
-            JsonNode formDefinition = getForm(formKey, resourceLoader);
+            JsonNode formDefinition = getFormByKey(formKey, resourceLoader);
             String formDefinitionJson = formDefinition.toString();
             String formResourcesDirPath = getFormResourcesDirPath(formDefinitionJson, resourceLoader);
             ObjectNode dataInUrlBuffer = JSON_MAPPER.createObjectNode();
@@ -188,7 +189,7 @@ public class FormioClient implements FormClient {
 
     @Override
     public List<String> getRootFormFieldNames(String formKey, ResourceLoader resourceLoader) {
-        JsonNode formDefinition = getForm(formKey, resourceLoader);
+        JsonNode formDefinition = getFormByKey(formKey, resourceLoader);
         return Optional.of(listChildComponents(formDefinition)).stream()
                 .flatMap(Collection::stream)
                 .filter(component -> component.path("input").asBoolean())
@@ -204,7 +205,7 @@ public class FormioClient implements FormClient {
 
     @Override
     public List<String> getFormFieldPaths(String formKey, ResourceLoader resourceLoader) {
-        JsonNode formDefinition = getForm(formKey, resourceLoader);
+        JsonNode formDefinition = getFormByKey(formKey, resourceLoader);
         return Optional.of(listChildComponents(formDefinition)).stream()
                 .flatMap(Collection::stream)
                 .filter(component -> component.path("input").asBoolean())
@@ -238,18 +239,45 @@ public class FormioClient implements FormClient {
         return unwrapGridData(json, formDefinition);
     }
 
-    private JsonNode getForm(String formKey, ResourceLoader resourceLoader) {
+    private JsonNode getFormByKey(String formKey, ResourceLoader resourceLoader) {
         try(InputStream resource = resourceLoader.getResource(formKey)) {
             return expandSubforms(JSON_MAPPER.readTree(resource), resourceLoader);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
-
-    private JsonNode getSubform(String formKey, ResourceLoader resourceLoader) {
-        formKey = formKey + ".json";
-        return getForm(formKey, resourceLoader);
+    
+    private JsonNode getSubform(String formId, ResourceLoader resourceLoader) {
+        String formKey = getFormKey(formId, resourceLoader);
+        return getFormByKey(formKey, resourceLoader);
     }
+
+    private String getFormKey(String formId, ResourceLoader resourceLoader) {
+        String groupId = resourceLoader.getGroupId() == null? "" : resourceLoader.getGroupId();
+        Map<String, String> formKeys = RESOURCE_GROUP_FORM_KEYS.computeIfAbsent(groupId,
+                key -> getFormKeys(resourceLoader));
+        return formKeys.get(formId);
+    }
+
+    private Map<String, String> getFormKeys(ResourceLoader resourceLoader) {
+        Map<String, String> result = new ConcurrentHashMap<>();
+        List<String> jsonResourceNames = resourceLoader.listResourceNames().stream()
+                .filter(resourceName -> resourceName.endsWith(".json"))
+                .collect(Collectors.toList());
+    
+        jsonResourceNames.forEach(jsonResourceName -> {
+            try(InputStream resource = resourceLoader.getResource(jsonResourceName)) {
+                JsonNode jsonResource = JSON_MAPPER.readTree(resource);
+                if (hasTypeOf(jsonResource, "form"))
+                    result.put(jsonResource.get("_id").asText(), jsonResourceName);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+            
+        });
+        return result;
+    }
+
 
     private JsonNode cleanUnusedData(String formDefinition, ObjectNode currentVariables, ResourceLoader resourceLoader,
                                      FileStorage fileStorage) throws Exception {
@@ -312,9 +340,9 @@ public class FormioClient implements FormClient {
     }
 
     private JsonNode convertToContainer(JsonNode formDefinition, ResourceLoader resourceLoader) {
-        String formKey = formDefinition.get("key").asText();
+        String formId = formDefinition.get("form").asText(); 
         JsonNode container = convertToContainer(formDefinition);
-        JsonNode components = getSubform(formKey, resourceLoader).get("components").deepCopy();
+        JsonNode components = getSubform(formId, resourceLoader).get("components").deepCopy();
         ((ObjectNode) container).put("type", "container");
         ((ObjectNode) container).put("tree", true);
         ((ObjectNode) container).replace("components", components);
