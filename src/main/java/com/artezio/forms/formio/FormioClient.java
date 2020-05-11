@@ -16,7 +16,6 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.jayway.jsonpath.*;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import net.minidev.json.JSONArray;
-
 import org.apache.commons.collections4.map.LRUMap;
 import org.apache.commons.lang3.StringUtils;
 
@@ -43,16 +42,16 @@ import static java.util.Arrays.asList;
 
 @Named
 public class FormioClient implements FormClient {
-    
+
     private static final Map<String, JSONArray> FILE_FIELDS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Boolean> SUBMISSION_PROCESSING_DECISIONS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, String> FORM_RESOURCES_DIR_CACHE = new ConcurrentHashMap<>();
-    
+
     private static final String VALIDATION_OPERATION_NAME = "validate";
     private static final String CLEANUP_OPERATION_NAME = "cleanup";
     private static final String GRID_NO_ROW_WRAPPING_PROPERTY = "noRowWrapping";
     private static final String NODEJS_FORMIO_SCRIPT_PATH = "formio-scripts/formio.js";
-    
+
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
             .setDefaultMergeable(false);
@@ -60,7 +59,7 @@ public class FormioClient implements FormClient {
             .jsonProvider(new JacksonJsonNodeJsonProvider())
             .build());
     private static final Path FORMIO_TEMP_DIR;
-    
+
     static {
         try {
             Path path = Paths.get(System.getProperty("java.io.tmpdir"), ".formio");
@@ -71,12 +70,12 @@ public class FormioClient implements FormClient {
             throw new RuntimeException("Error while creating formio temp directory", e);
         }
     }
-    
+
     private static final int NODEJS_EXECUTOR_POOL_SIZE = Integer.parseInt(System.getProperty("NODEJS_EXECUTOR_POOL_SIZE", "100"));
     private static final Map<String, NodeJsExecutor> NODEJS_EXECUTORS = Collections.synchronizedMap(new LRUMap<>(NODEJS_EXECUTOR_POOL_SIZE));
-    
+
     private static final String NODEJS_FORMIO_SCRIPT;
-    
+
     static {
         try (InputStream resource = FormioClient.class.getClassLoader().getResourceAsStream(NODEJS_FORMIO_SCRIPT_PATH)) {
             NODEJS_FORMIO_SCRIPT = new String(resource.readAllBytes(), StandardCharsets.UTF_8);
@@ -239,7 +238,7 @@ public class FormioClient implements FormClient {
     }
 
     private JsonNode getForm(String formKey, ResourceLoader resourceLoader) {
-        try(InputStream resource = resourceLoader.getResource(formKey)) {
+        try (InputStream resource = resourceLoader.getResource(formKey)) {
             return expandSubforms(JSON_MAPPER.readTree(resource), resourceLoader);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -524,8 +523,8 @@ public class FormioClient implements FormClient {
         return Optional.ofNullable(formComponents)
                 .map(Collection::stream)
                 .orElse(Stream.empty())
-                .filter(component -> component.get("input").asBoolean())
                 .filter(component -> StringUtils.isNotBlank(component.get("key").asText()))
+                .flatMap(this::extractChildrenIfLayoutComponent)
                 .map(component -> getFormVariable(component, submittedVariables, currentVariables))
                 .filter(Objects::nonNull)
                 .collect(
@@ -533,6 +532,35 @@ public class FormioClient implements FormClient {
                         (resultData, cleanDataEntry) -> resultData.set(cleanDataEntry.getKey(), cleanDataEntry.getValue()),
                         ObjectNode::setAll
                 );
+    }
+
+    private Stream<JsonNode> extractChildrenIfLayoutComponent(JsonNode component) {
+        if (isLayoutComponent(component)) {
+            return extractChildrenFromLayoutComponent(component);
+        } else {
+            return Stream.of(component);
+        }
+    }
+
+    private Stream<JsonNode> extractChildrenFromLayoutComponent(JsonNode component) {
+        if (hasTypeOf(component, "table")) {
+            return toStream(component.get("rows"))
+                    .flatMap(this::toStream)
+                    .flatMap(cell -> toStream(cell.get("components")))
+                    .flatMap(this::extractChildrenIfLayoutComponent);
+        }
+        if (hasTypeOf(component, "columns")) {
+            return toStream(component.get("columns"))
+                    .flatMap(column -> toStream(column.get("components")))
+                    .flatMap(this::extractChildrenIfLayoutComponent);
+        }
+        if (hasTypeOf(component, "tabs")) {
+            return toStream(component.get("components"))
+                    .flatMap(tab -> toStream(tab.get("components")))
+                    .flatMap(this::extractChildrenIfLayoutComponent);
+        }
+        return toStream(component.get("components"))
+                .flatMap(this::extractChildrenIfLayoutComponent);
     }
 
     private Map.Entry<String, ? extends JsonNode> getFormVariable(JsonNode component, JsonNode submittedVariables,
@@ -593,10 +621,10 @@ public class FormioClient implements FormClient {
     }
 
     private String getFormResourcesDirPath(String formDefinitionJson, ResourceLoader resourceLoader) {
-        String cacheKey = resourceLoader.getGroupId() != null ? 
+        String cacheKey = resourceLoader.getGroupId() != null ?
                 resourceLoader.getGroupId()
                 : String.valueOf(formDefinitionJson.hashCode());
-        
+
         return FORM_RESOURCES_DIR_CACHE.computeIfAbsent(cacheKey, key -> {
             try {
                 Path formResourcesDir = createFormResourcesDir(key);
@@ -607,8 +635,8 @@ public class FormioClient implements FormClient {
             }
         });
     }
-    
-    
+
+
     private Path createFormResourcesDir(String dirName) throws IOException {
         dirName = replaceIllegalPathNameCharacters(dirName);
         Path dir = Paths.get(FORMIO_TEMP_DIR.toString(), dirName);

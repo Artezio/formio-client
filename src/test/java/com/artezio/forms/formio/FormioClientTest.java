@@ -17,6 +17,7 @@ import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
+import org.powermock.reflect.Whitebox;
 
 import java.io.*;
 import java.lang.reflect.Field;
@@ -659,7 +660,158 @@ public class FormioClientTest {
         assertEquals(operation, actualJson.get("operation").asText());
         assertTrue(actualJson.hasNonNull("resourcePath"));
         assertEquals("C:\\\\\\\\Temp", actualJson.get("resourcePath").asText());
-        
+    }
+
+    @Test
+    public void testGetFormFields_FormWithSimpleFields() throws Exception {
+        JsonNode form = jsonMapper.readTree(getFile("forms/form-with-components.json"));
+        JsonNode components = form.get("components");
+        List<JsonNode> componentList = new ArrayList<>();
+        components.forEach(componentList::add);
+        JsonNode submittedVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) submittedVariables).put("textField1", "value1");
+        ((ObjectNode) submittedVariables).put("textField2", "value2");
+        JsonNode currentVariables = jsonMapper.createObjectNode();
+        JsonNode expected = submittedVariables.deepCopy().deepCopy();
+
+        JsonNode actual = Whitebox.invokeMethod(formioClient, "getFormVariables", componentList, submittedVariables, currentVariables);
+
+        assertEquals(sortObject(expected), sortObject(actual));
+    }
+
+    @Test
+    public void testGetFormFields_FormWithSimpleComponents_SubmittedVariablesHaveChangedReadonlyVariable() throws Exception {
+        JsonNode form = jsonMapper.readTree(getFile("forms/form-with-components.json"));
+        JsonNode components = form.get("components");
+        ((ObjectNode) components.get(0)).put("disabled", true);
+        List<JsonNode> componentList = new ArrayList<>();
+        components.forEach(componentList::add);
+        JsonNode submittedVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) submittedVariables).put("textField1", "value1");
+        ((ObjectNode) submittedVariables).put("textField2", "value2");
+        JsonNode currentVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) currentVariables).put("textField1", "readonlyValue");
+        JsonNode expected = submittedVariables.deepCopy();
+        ((ObjectNode) expected).put("textField1", "readonlyValue");
+
+        JsonNode actual = Whitebox.invokeMethod(formioClient, "getFormVariables", componentList, submittedVariables, currentVariables);
+
+        assertEquals(sortObject(expected), sortObject(actual));
+    }
+
+    @Test
+    public void testGetFormFields_FormWithContainerComponents() throws Exception {
+        JsonNode form = jsonMapper.readTree(getFile("forms/form-with-container-components.json"));
+        JsonNode components = form.get("components");
+        List<JsonNode> componentList = new ArrayList<>();
+        components.forEach(componentList::add);
+        JsonNode submittedVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) submittedVariables).putObject("container1").putObject("container11").put("textField1", "value1");
+        ((ObjectNode) submittedVariables).putObject("container2").putObject("container21").put("textField2", "value2");
+        JsonNode currentVariables = jsonMapper.createObjectNode();
+        JsonNode expected = submittedVariables.deepCopy();
+
+        JsonNode actual = Whitebox.invokeMethod(formioClient, "getFormVariables", componentList, submittedVariables, currentVariables);
+
+        assertEquals(sortObject(expected), sortObject(actual));
+    }
+
+    @Test
+    public void testGetFormFields_FormWithContainerComponents_SubmittedVariablesHaveChangedReadonlyVariable() throws Exception {
+        JsonNode form = jsonMapper.readTree(getFile("forms/form-with-container-components.json"));
+        JsonNode components = form.get("components");
+        ((ObjectNode) components.get(0).get("components").get(0).get("components").get(0)).put("disabled", true);
+        List<JsonNode> componentList = new ArrayList<>();
+        components.forEach(componentList::add);
+        JsonNode submittedVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) submittedVariables).putObject("container1").putObject("container11").put("textField1", "value1");
+        ((ObjectNode) submittedVariables).putObject("container2").putObject("container21").put("textField2", "value2");
+        JsonNode currentVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) currentVariables).putObject("container1").putObject("container11").put("textField1", "readonlyVariable");
+        JsonNode expected = submittedVariables.deepCopy();
+        ((ObjectNode) expected).replace("container1", currentVariables.get("container1"));
+
+        JsonNode actual = Whitebox.invokeMethod(formioClient, "getFormVariables", componentList, submittedVariables, currentVariables);
+
+        assertEquals(sortObject(expected), sortObject(actual));
+    }
+
+    @Test
+    public void testGetFormFields_FormWithArrayComponents() throws Exception {
+        JsonNode form = jsonMapper.readTree(getFile("forms/form-with-array-components.json"));
+        JsonNode components = form.get("components");
+        List<JsonNode> componentList = new ArrayList<>();
+        components.forEach(componentList::add);
+        JsonNode submittedVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) submittedVariables).putArray("dataGrid1").addObject().putArray("dataGrid11").addObject().put("textField1", "value1");
+        ((ObjectNode) submittedVariables).putArray("editGrid1").addObject().putArray("editGrid11").addObject().put("textField2", "value2");
+        JsonNode currentVariables = jsonMapper.createObjectNode();
+        JsonNode expected = submittedVariables.deepCopy();
+
+        JsonNode actual = Whitebox.invokeMethod(formioClient, "getFormVariables", componentList, submittedVariables, currentVariables);
+
+        assertEquals(sortObject(expected), sortObject(actual));
+    }
+
+    @Test
+    public void testGetFormFields_FormWithArrayComponents_SubmittedVariablesHaveChangedReadonlyVariable() throws Exception {
+        JsonNode form = jsonMapper.readTree(getFile("forms/form-with-array-components.json"));
+        JsonNode components = form.get("components");
+        ((ObjectNode) components.get(0).get("components").get(0).get("components").get(0)).put("disabled", true);
+        List<JsonNode> componentList = new ArrayList<>();
+        components.forEach(componentList::add);
+        JsonNode submittedVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) submittedVariables).putArray("dataGrid1").addObject().putArray("dataGrid11").addObject().put("textField1", "value1");
+        ((ObjectNode) submittedVariables).putArray("editGrid1").addObject().putArray("editGrid11").addObject().put("textField2", "value2");
+        JsonNode currentVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) currentVariables).putArray("dataGrid1").addObject().putArray("dataGrid11").addObject().put("textField1", "readonlyValue");
+        JsonNode expected = submittedVariables.deepCopy();
+        ((ObjectNode) expected).replace("dataGrid1", currentVariables.get("dataGrid1"));
+
+        JsonNode actual = Whitebox.invokeMethod(formioClient, "getFormVariables", componentList, submittedVariables, currentVariables);
+
+        assertEquals(sortObject(expected), sortObject(actual));
+    }
+
+    @Test
+    public void testGetFormFields_FormWithLayoutComponents() throws Exception {
+        JsonNode form = jsonMapper.readTree(getFile("forms/form-with-layout-components.json"));
+        JsonNode components = form.get("components");
+        List<JsonNode> componentList = new ArrayList<>();
+        components.forEach(componentList::add);
+        JsonNode submittedVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) submittedVariables).put("textField1", "value1");
+        ((ObjectNode) submittedVariables).put("textField2", "value2");
+        ((ObjectNode) submittedVariables).put("textField3", "value3");
+        ((ObjectNode) submittedVariables).put("textField4", "value4");
+        JsonNode currentVariables = jsonMapper.createObjectNode();
+        JsonNode expected = submittedVariables.deepCopy();
+
+        JsonNode actual = Whitebox.invokeMethod(formioClient, "getFormVariables", componentList, submittedVariables, currentVariables);
+
+        assertEquals(sortObject(expected), sortObject(actual));
+    }
+
+    @Test
+    public void testGetFormFields_FormWithLayoutComponents_SubmittedVariablesHaveChangedReadonlyVariable() throws Exception {
+        JsonNode form = jsonMapper.readTree(getFile("forms/form-with-layout-components.json"));
+        JsonNode components = form.get("components");
+        ((ObjectNode) components.get(1).get("components").get(0).get("components").get(0)).put("disabled", true);
+        List<JsonNode> componentList = new ArrayList<>();
+        components.forEach(componentList::add);
+        JsonNode submittedVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) submittedVariables).put("textField1", "value1");
+        ((ObjectNode) submittedVariables).put("textField2", "value2");
+        ((ObjectNode) submittedVariables).put("textField3", "value3");
+        ((ObjectNode) submittedVariables).put("textField4", "value4");
+        JsonNode currentVariables = jsonMapper.createObjectNode();
+        ((ObjectNode) currentVariables).put("textField2", "readonlyValue");
+        JsonNode expected = submittedVariables.deepCopy();
+        ((ObjectNode) expected).replace("textField2", currentVariables.get("textField2"));
+
+        JsonNode actual = Whitebox.invokeMethod(formioClient, "getFormVariables", componentList, submittedVariables, currentVariables);
+
+        assertEquals(sortObject(expected), sortObject(actual));
     }
 
     private void assertFileStorageEntitiesEquals(FileStorageEntity entity1, FileStorageEntity entity2) throws IOException {
