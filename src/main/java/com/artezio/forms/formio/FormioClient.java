@@ -16,7 +16,6 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.jayway.jsonpath.*;
 import com.jayway.jsonpath.spi.json.JacksonJsonNodeJsonProvider;
 import net.minidev.json.JSONArray;
-
 import org.apache.commons.collections4.map.LRUMap;
 import org.apache.commons.lang3.StringUtils;
 
@@ -552,8 +551,8 @@ public class FormioClient implements FormClient {
         return Optional.ofNullable(formComponents)
                 .map(Collection::stream)
                 .orElse(Stream.empty())
-                .filter(component -> component.get("input").asBoolean())
                 .filter(component -> StringUtils.isNotBlank(component.get("key").asText()))
+                .flatMap(this::extractChildrenIfLayoutComponent)
                 .map(component -> getFormVariable(component, submittedVariables, currentVariables))
                 .filter(Objects::nonNull)
                 .collect(
@@ -561,6 +560,35 @@ public class FormioClient implements FormClient {
                         (resultData, cleanDataEntry) -> resultData.set(cleanDataEntry.getKey(), cleanDataEntry.getValue()),
                         ObjectNode::setAll
                 );
+    }
+
+    private Stream<JsonNode> extractChildrenIfLayoutComponent(JsonNode component) {
+        if (isLayoutComponent(component)) {
+            return extractChildrenFromLayoutComponent(component);
+        } else {
+            return Stream.of(component);
+        }
+    }
+
+    private Stream<JsonNode> extractChildrenFromLayoutComponent(JsonNode component) {
+        if (hasTypeOf(component, "table")) {
+            return toStream(component.get("rows"))
+                    .flatMap(this::toStream)
+                    .flatMap(cell -> toStream(cell.get("components")))
+                    .flatMap(this::extractChildrenIfLayoutComponent);
+        }
+        if (hasTypeOf(component, "columns")) {
+            return toStream(component.get("columns"))
+                    .flatMap(column -> toStream(column.get("components")))
+                    .flatMap(this::extractChildrenIfLayoutComponent);
+        }
+        if (hasTypeOf(component, "tabs")) {
+            return toStream(component.get("components"))
+                    .flatMap(tab -> toStream(tab.get("components")))
+                    .flatMap(this::extractChildrenIfLayoutComponent);
+        }
+        return toStream(component.get("components"))
+                .flatMap(this::extractChildrenIfLayoutComponent);
     }
 
     private Map.Entry<String, ? extends JsonNode> getFormVariable(JsonNode component, JsonNode submittedVariables,
