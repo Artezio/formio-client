@@ -46,7 +46,7 @@ public class NodeJs {
         final char EOT = '\u0004';
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
         StringBuilder stringBuilder = new StringBuilder();
-        int bufferSize = 8192;
+        int bufferSize = 1048576;
         CharBuffer buffer = CharBuffer.allocate(bufferSize);
         char lastChar = 0;
         while (lastChar != EOT) {
