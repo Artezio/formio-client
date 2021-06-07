@@ -2,23 +2,30 @@ require('./prepareEnvironment');
 const getCommand = require('./getCommand');
 const process = require('process');
 const Stdout = require('./stdout');
+const { EOT } = require('./constants');
 
 const stdout = Stdout.getInstance();
 
-function handleStdin(data) {
-    data = data.toString();
-    data = JSON.parse(data);
-    const command = getCommand(data.operation, data);
-    command.execute()
-        .then(() => stdout.finally())
+var data = '';
+
+function onInData(_data) {
+    const eotIndex = _data.indexOf(EOT)
+    if(eotIndex !== -1){
+        data += _data.substring(0, eotIndex);
+        runProcess();
+    }else {
+        data += _data;
+    }
 }
-
-process.stdin.on('data', handleStdin);
-
-// data = require('./test.dev');
-// const command = getCommand(data.operation, data);
-// console.time('123');
-// command.execute().then(() => {
-//     console.timeEnd('123');
-//     stdout.finally()
-// })
+function runProcess(){
+    const obj = JSON.parse(data);
+    data = '';
+    const command = getCommand(obj.operation, obj);
+    command.execute()
+        .then(() => {
+            stdout.finally();
+        })
+}
+process.stdin.on('data', onInData).on('end', () => {
+    runProcess()
+});
