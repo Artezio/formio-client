@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "formiojs": "4.9.22",
-    "jsdom": "^15.2.1",
+    "jsdom": "^16.5.0",
     "jsdom-global": "^3.0.2"
   },
   "devDependencies": {
